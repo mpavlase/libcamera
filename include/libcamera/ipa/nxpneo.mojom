@@ -56,11 +56,13 @@ struct InitParams {
 	libcamera.IPACameraSensorInfo sensorInfo;
 	libcamera.ControlInfoMap sensorControls;
 	libcamera.ControlList sensorControlList;
+	bool lensPresent;
 };
 
 struct IPAConfigInfo {
 	libcamera.IPACameraSensorInfo sensorInfo;
 	libcamera.ControlInfoMap sensorControls;
+	libcamera.ControlInfoMap lensControls;
 	libcamera.ControlList sensorControlList;
 	IPAModeType mode;
 	IPAColorSpace colorSpace;
@@ -137,5 +139,6 @@ interface IPANxpNeoInterface {
 interface IPANxpNeoEventInterface {
 	paramsComputed(uint32 frame, IPAContextType context, uint32 bytesused);
 	setSensorControls(uint32 frame, IPAContextType context, libcamera.ControlList sensorControls);
+	setLensControls(libcamera.ControlList controls);
 	metadataReady(uint32 frame, IPAContextType context, libcamera.ControlList metadata);
 };
