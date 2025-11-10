@@ -99,6 +99,9 @@ private:
 
 	ControlInfoMap sensorControls_;
 	ControlList sensorControlList_;
+	ControlInfoMap lensControls_;
+
+	bool lensPresent_ = false;
 
 	/* Local parameter storage */
 	struct IPAContext context_;
@@ -113,12 +116,24 @@ const std::map<const IPAModeType, SensorStreamModes> IPANxpNeo::kSensorStreamMod
 
 namespace {
 
-/* List of controls handled by the NeoNxp IPA */
-const ControlInfoMap::Map nxpneoControls{
+/* Default IPA controls */
+const ControlInfoMap::Map ipaDefaultControls{
 	{ &controls::AeEnable, ControlInfo(false, true) },
 	{ &controls::AwbEnable, ControlInfo(false, true) },
 	{ &controls::ColourGains, ControlInfo(0.0f, 32.0f) },
 	{ &controls::Gamma, ControlInfo(0.5f, 10.0f, 2.2f) },
+};
+
+/* Optional IPA controls */
+const ControlInfoMap::Map ipaAfControls{
+	{ &controls::AfMode, ControlInfo(controls::AfModeValues) },
+	{ &controls::AfRange, ControlInfo(controls::AfRangeValues) },
+	{ &controls::AfSpeed, ControlInfo(controls::AfSpeedValues) },
+	{ &controls::AfMetering, ControlInfo(controls::AfMeteringValues) },
+	{ &controls::AfWindows, ControlInfo(Rectangle{}, Rectangle(65535, 65535, 65535, 65535), Rectangle{}) },
+	{ &controls::AfTrigger, ControlInfo(controls::AfTriggerValues) },
+	{ &controls::AfPause, ControlInfo(controls::AfPauseValues) },
+	{ &controls::LensPosition, ControlInfo(0.0f, 32.0f, 1.0f) }
 };
 
 } /* namespace */
@@ -147,6 +162,8 @@ int IPANxpNeo::init(const IPASettings &settings, const InitParams &params,
 	context_.hw.apiVersion = params.apiVersion;
 	context_.hw.hwRevision = params.hwRevision;
 	context_.hw.hwCapabilities = params.hwCapabilities;
+
+	lensPresent_ = params.lensPresent;
 
 	context_.camHelper = CameraHelperFactoryBase::create(settings.sensorModel);
 	if (!context_.camHelper) {
@@ -260,6 +277,7 @@ int IPANxpNeo::configure(const IPAConfigInfo &ipaConfig,
 
 	/* Update the IPA context using the new sensor settings. */
 	updateSensorConfig(info, ipaConfig.sensorControls);
+	lensControls_ = ipaConfig.lensControls;
 	/* Update the camera controls using the new sensor settings. */
 	updateControls(info, ipaConfig.sensorControls, ipaControls);
 
@@ -407,6 +425,14 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 		algo->prepare(context_, frame, frameContext, &params);
 
 	paramsComputed.emit(frame, context, params.size());
+
+	const auto afState = context_.activeState.af;
+	if (lensPresent_ && afState.hwPositionUpdate && afState.hwPosition) {
+		ControlList lensControls(lensControls_);
+		ControlValue value(afState.hwPosition.value());
+		lensControls.set(V4L2_CID_FOCUS_ABSOLUTE, value);
+		setLensControls.emit(lensControls);
+	}
 }
 
 void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
@@ -522,7 +548,7 @@ void IPANxpNeo::updateControls(const IPACameraSensorInfo &sensorInfo,
 			       const ControlInfoMap &sensorControls,
 			       ControlInfoMap *ipaControls)
 {
-	ControlInfoMap::Map ctrlMap = nxpneoControls;
+	ControlInfoMap::Map ctrlMap = ipaDefaultControls;
 	auto &sensorConfig = context_.configuration.sensor;
 
 	/* ExposureTime range is in microseconds */
@@ -566,8 +592,18 @@ void IPANxpNeo::updateControls(const IPACameraSensorInfo &sensorInfo,
 	ctrlMap[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
 							      frameDurations[1],
 							      frameDurations[2]);
-
 	ctrlMap.merge(context_.ctrlMap);
+
+	if (lensPresent_) {
+		ctrlMap.merge(ControlInfoMap::Map(ipaAfControls));
+
+		const auto &afConfig = context_.configuration.af;
+		float min = afConfig.minLensPosition;
+		float max = afConfig.maxLensPosition;
+		float def = afConfig.defLensPosition;
+		ctrlMap[&controls::LensPosition] = ControlInfo(min, max, def);
+	}
+
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
 }
 
