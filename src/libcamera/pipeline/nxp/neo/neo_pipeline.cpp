@@ -335,6 +335,7 @@ private:
 			      const ControlList &metadata);
 	void ipaSetSensorControls(unsigned int id, ipa::nxpneo::IPAContextType context,
 				  const ControlList &sensorControls);
+	void ipaSetLensControls(const ControlList &lensControls);
 	unsigned int contextCount() { return mode_ == ModeTypeRgbIrDual ? 2 : 1; }
 
 	std::unique_ptr<CameraSensor> sensor_;
@@ -2166,6 +2167,7 @@ int NxpNeoCameraData::loadIPA()
 		return -ENOENT;
 
 	ipa_->setSensorControls.connect(this, &NxpNeoCameraData::ipaSetSensorControls);
+	ipa_->setLensControls.connect(this, &NxpNeoCameraData::ipaSetLensControls);
 	ipa_->paramsComputed.connect(this, &NxpNeoCameraData::ipaParamsComputed);
 	ipa_->metadataReady.connect(this, &NxpNeoCameraData::ipaMetadataReady);
 
@@ -2191,7 +2193,8 @@ int NxpNeoCameraData::loadIPA()
 					       neo_->apiVersion(),
 					       entity->name(), sensorInfo,
 					       sensor->controls(),
-					       sensor_->getControls(ids) };
+					       sensor_->getControls(ids),
+					       !!sensor_->focusLens() };
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
 			 initParams, &ipaControls_, &sensorConfig);
 	if (ret) {
@@ -2670,6 +2673,9 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 	std::vector<uint32_t> ids = utils::map_keys(sensor_->controls().idmap());
 	configInfo.sensorControls = sensor_->controls();
 	configInfo.sensorControlList = sensor_->getControls(ids);
+	if (sensor_->focusLens())
+		configInfo.lensControls = sensor_->focusLens()->controls();
+
 	configInfo.sensorInfo = sensorInfo;
 
 	configInfo.colorSpace = ipa::nxpneo::IPAColorSpace(
@@ -3409,6 +3415,16 @@ void NxpNeoCameraData::ipaSetSensorControls([[maybe_unused]] unsigned int id,
 					    const ControlList &sensorControls)
 {
 	delayedCtrls_[static_cast<ContextType>(context)]->push(sensorControls);
+}
+
+void NxpNeoCameraData::ipaSetLensControls(const ControlList &lensControls)
+{
+	CameraLens *lens = sensor_->focusLens();
+
+	if (lens && lensControls.contains(V4L2_CID_FOCUS_ABSOLUTE)) {
+		ControlValue const &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
+		lens->setFocusPosition(focusValue.get<int32_t>());
+	}
 }
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerNxpNeo, "nxp/neo")
