@@ -14,6 +14,7 @@
 
 #include <libcamera/base/utils.h>
 
+#include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
 #include <libcamera/geometry.h>
 
@@ -39,6 +40,19 @@ struct IPAHwSettings {
 };
 
 struct IPASessionConfiguration {
+	struct {
+		/* Lens position in dioptres */
+		float minLensPosition;
+		float maxLensPosition;
+		float defLensPosition;
+
+		/* Camera mode */
+		uint16_t cropX;
+		uint16_t cropY;
+		double scaleX;
+		double scaleY;
+	} af;
+
 	struct {
 		/* ROI for statistics measurements */
 		struct neoisp_roi_cfg_s roi;
@@ -93,6 +107,12 @@ struct IPASessionConfiguration {
 
 struct IPAActiveState {
 	struct {
+		controls::AfModeEnum mode;
+		std::optional<int32_t> hwPosition;
+		bool hwPositionUpdate;
+	} af;
+
+	struct {
 		struct {
 			uint32_t exposure;
 			double gain;
@@ -127,6 +147,22 @@ struct IPAActiveState {
 };
 
 struct IPAFrameContext : public FrameContext {
+	struct {
+		/* User control updates. */
+		std::optional<controls::AfModeEnum> mode;
+		std::optional<controls::AfRangeEnum> range;
+		std::optional<controls::AfSpeedEnum> speed;
+		std::optional<controls::AfMeteringEnum> metering;
+		std::optional<std::vector<Rectangle>> windows;
+		std::optional<controls::AfPauseEnum> pause;
+		std::optional<controls::AfTriggerEnum> trigger;
+		std::optional<float> lensPosition;
+
+		/* AF states. */
+		controls::AfStateEnum state;
+		controls::AfPauseStateEnum pauseState;
+	} af;
+
 	struct {
 		uint32_t exposure;
 		double gain;
