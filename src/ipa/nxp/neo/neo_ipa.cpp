@@ -278,8 +278,6 @@ int IPANxpNeo::configure(const IPAConfigInfo &ipaConfig,
 	/* Update the IPA context using the new sensor settings. */
 	updateSensorConfig(info, ipaConfig.sensorControls);
 	lensControls_ = ipaConfig.lensControls;
-	/* Update the camera controls using the new sensor settings. */
-	updateControls(info, ipaConfig.sensorControls, ipaControls);
 
 	uint32_t bpp0 = ipaConfig.sensorInfo.bitsPerPixel;
 	uint32_t bpp1 = ipaConfig.bitsPerPixelAuxiliary;
@@ -302,6 +300,9 @@ int IPANxpNeo::configure(const IPAConfigInfo &ipaConfig,
 		if (ret)
 			return ret;
 	}
+
+	/* Update the camera controls using the new sensor settings. */
+	updateControls(info, ipaConfig.sensorControls, ipaControls);
 
 	return 0;
 }
