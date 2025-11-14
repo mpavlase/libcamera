@@ -46,6 +46,17 @@ public:
 		     ControlList &metadata) override;
 
 private:
+	enum Hist {
+		Hist0 = 0,
+		Hist1,
+		Hist2,
+		Hist3,
+	};
+	enum Roi {
+		Roi0 = 0,
+		Roi1,
+	};
+
 	double estimateLuminance(double gain) const override;
 	void fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 			  ControlList &metadata);
@@ -55,6 +66,7 @@ private:
 	std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> rgbTriples_;
 
 	static constexpr size_t kNumHist = 4;
+	static const RGB<uint8_t> kHistIds;
 	std::vector<uint32_t> histScale_;
 	bool userConfig_ = false;
 };

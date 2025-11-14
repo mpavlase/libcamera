@@ -88,21 +88,25 @@ enum neoisp_hist_ctrl_channel {
  */
 
 #define NEO_HIST_BIN_SIZE 64
-#define NEO_HIST_ROI_NB 2
-#define NEO_HIST0_ID 0
-#define NEO_HIST1_ID 1
-#define NEO_HIST2_ID 2
-#define NEO_HIST3_ID 3
-#define NEO_HIST_ROI0_ID 0
-#define NEO_HIST_ROI1_ID 1
+#define GET_HIST_MEM_OFFSET(histId, roiId)                \
+	(histId * NEO_RGBIR_ROI_CNT * NEO_HIST_BIN_SIZE + \
+	 roiId * NEO_HIST_BIN_SIZE)
 
-#define NEO_HIST0_OFFSET (NEO_HIST0_ID + NEO_HIST_ROI1_ID * NEO_HIST_BIN_SIZE)
-#define NEO_HIST1_OFFSET (NEO_HIST1_ID * NEO_HIST_ROI_NB * NEO_HIST_BIN_SIZE + \
-			  NEO_HIST_ROI1_ID * NEO_HIST_BIN_SIZE)
-#define NEO_HIST2_OFFSET (NEO_HIST2_ID * NEO_HIST_ROI_NB * NEO_HIST_BIN_SIZE + \
-			  NEO_HIST_ROI1_ID * NEO_HIST_BIN_SIZE)
-#define NEO_HIST3_OFFSET (NEO_HIST3_ID * NEO_HIST_ROI_NB * NEO_HIST_BIN_SIZE + \
-			  NEO_HIST_ROI1_ID * NEO_HIST_BIN_SIZE)
+/* This value is used to disable a ROI histogram. */
+#define HIST_ROI_INVALID_IMAGE_GEOMETRY 65535
+
+/*
+ * Scaling (gain) factor for the histogram bin determination.
+ * The value specified is in u8.16 format.
+ *
+ * The default scaling value is calculated with a default 20-bit range.
+ * Indeed the expected bit range to reach at the HDR merge unit
+ * (upstream to the STAT and the RGBIR units) is 20-bit range.
+ *
+ * defaultScaleValue = maxBins * 2^16 / 2^20
+ *
+ */
+#define HIST_SCALE_DEFAULT ((NEO_HIST_BIN_SIZE << 16) >> 20)
 
 /**
  * OBWB shared definitions between algorithms and IPA context.

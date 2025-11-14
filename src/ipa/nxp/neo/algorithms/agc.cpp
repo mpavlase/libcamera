@@ -51,29 +51,7 @@ namespace ipa::nxpneo::algorithms {
 
 LOG_DEFINE_CATEGORY(NxpNeoAlgoAgc)
 
-/* Histogram configuration: This value is used to disable ROI0 */
-#define AGC_ROI_INVALID_IMAGE_GEOMETRY 65535
-
-/* Histogram assignment to RGGB channels */
-#define AGC_HIST_CFG_RED NEO_HIST0_ID
-#define AGC_HIST_CFG_GREEN NEO_HIST1_ID
-#define AGC_HIST_CFG_BLUE NEO_HIST2_ID
-#define AGC_HIST_MEM_RED NEO_HIST0_OFFSET
-#define AGC_HIST_MEM_GREEN NEO_HIST1_OFFSET
-#define AGC_HIST_MEM_BLUE NEO_HIST2_OFFSET
-
-/*
- * Scaling (gain) factor for the histogram bin determination.
- * The value specified is in u8.16 format.
- *
- * The default scaling value is calculated with a default 20bits range.
- * Indeed the expected bit range to reach at the HDR merge unit (prior
- * to the STAT unit) is 20bits range.
- *
- * defaultScaleValue = maxBins * 2^16 / 2^20
- *
- */
-#define AGC_HIST_SCALE_DEFAULT ((NEO_HIST_BIN_SIZE << 16) >> 20)
+const RGB<uint8_t> Agc::kHistIds{ { Agc::Hist0, Agc::Hist1, Agc::Hist2 } };
 
 Agc::Agc()
 {
@@ -112,9 +90,9 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	const YamlObject &obj = tuningData["hist-scale"];
 	if (!obj.size()) {
 		LOG(NxpNeoAlgoAgc, Debug) << "Use default histogram scaling value: "
-					  << AGC_HIST_SCALE_DEFAULT;
+					  << HIST_SCALE_DEFAULT;
 		for (unsigned int i = 0; i < kNumHist; ++i) {
-			histScale_.push_back(AGC_HIST_SCALE_DEFAULT);
+			histScale_.push_back(HIST_SCALE_DEFAULT);
 		}
 		return 0;
 	}
@@ -173,13 +151,13 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	 * - short capture to 20-bits range
 	 * - long capture to the range of the short capture divided by the ratio
 	 *   between the long and the short captures
-	 * Note that AGC_HIST_SCALE_DEFAULT is configured for the default 20-bits
+	 * Note that HIST_SCALE_DEFAULT is configured for the default 20-bits
 	 * scaling format.
 	 */
 	IPAModeType &mode = context.configuration.pipelineMode;
 	if (!userConfig_ && mode == IPAModeTypeHdrMerge) {
 		uint16_t ratioL2S = context.configuration.hdr.ratioLong2Short;
-		uint32_t scaleHdr = AGC_HIST_SCALE_DEFAULT * ratioL2S;
+		uint32_t scaleHdr = HIST_SCALE_DEFAULT * ratioL2S;
 		histScale_ = { scaleHdr, scaleHdr, scaleHdr, scaleHdr };
 	}
 
@@ -248,39 +226,38 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 
 	/* Configure histograms */
 	/* Foreground ROI disabled (> Image geometry means invalid ROI) */
-	config->roi0.xpos = AGC_ROI_INVALID_IMAGE_GEOMETRY;
-	config->roi0.ypos = AGC_ROI_INVALID_IMAGE_GEOMETRY;
-	config->roi0.width = AGC_ROI_INVALID_IMAGE_GEOMETRY;
-	config->roi0.height = AGC_ROI_INVALID_IMAGE_GEOMETRY;
+	config->roi0.xpos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	config->roi0.ypos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	config->roi0.width = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	config->roi0.height = HIST_ROI_INVALID_IMAGE_GEOMETRY;
 	/* Background ROI: set to full image */
 	config->roi1 = context.configuration.agc.roi;
 
 	/* Histogram control */
 	/* HIST for Red */
-	neoisp_stat_hist_cfg_s *hist_red = &config->hists[AGC_HIST_CFG_RED];
-	hist_red->hist_ctrl_offset = 0;
-	hist_red->hist_ctrl_channel = NEO_HIST_CHANNEL_R;
-	hist_red->hist_ctrl_pattern = 0;
-	hist_red->hist_ctrl_dir_input1_dif = 0;
-	hist_red->hist_ctrl_lin_input1_log = 0;
-	hist_red->hist_scale_scale = histScale_[AGC_HIST_CFG_RED];
+	neoisp_stat_hist_cfg_s *histRed = &config->hists[kHistIds.r()];
+	histRed->hist_ctrl_offset = 0;
+	histRed->hist_ctrl_channel = NEO_HIST_CHANNEL_R;
+	histRed->hist_ctrl_pattern = 0;
+	histRed->hist_ctrl_dir_input1_dif = 0;
+	histRed->hist_ctrl_lin_input1_log = 0;
+	histRed->hist_scale_scale = histScale_[kHistIds.r()];
 	/* HIST for Gr+Gb */
-	neoisp_stat_hist_cfg_s *hist_green = &config->hists[AGC_HIST_CFG_GREEN];
-	hist_green->hist_ctrl_offset = 0;
-	hist_green->hist_ctrl_channel = NEO_HIST_CHANNEL_GR | NEO_HIST_CHANNEL_GB;
-	hist_green->hist_ctrl_pattern = 0;
-	hist_green->hist_ctrl_dir_input1_dif = 0;
-	hist_green->hist_ctrl_lin_input1_log = 0;
-	hist_green->hist_scale_scale = histScale_[AGC_HIST_CFG_GREEN];
+	neoisp_stat_hist_cfg_s *histGreen = &config->hists[kHistIds.g()];
+	histGreen->hist_ctrl_offset = 0;
+	histGreen->hist_ctrl_channel = NEO_HIST_CHANNEL_GR | NEO_HIST_CHANNEL_GB;
+	histGreen->hist_ctrl_pattern = 0;
+	histGreen->hist_ctrl_dir_input1_dif = 0;
+	histGreen->hist_ctrl_lin_input1_log = 0;
+	histGreen->hist_scale_scale = histScale_[kHistIds.g()];
 	/* HIST for Blue */
-	neoisp_stat_hist_cfg_s *hist_blue = &config->hists[AGC_HIST_CFG_BLUE];
-	hist_blue->hist_ctrl_offset = 0;
-	hist_blue->hist_ctrl_channel = NEO_HIST_CHANNEL_B;
-	hist_blue->hist_ctrl_pattern = 0;
-	hist_blue->hist_ctrl_dir_input1_dif = 0;
-	hist_blue->hist_ctrl_lin_input1_log = 0;
-	hist_blue->hist_scale_scale = histScale_[AGC_HIST_CFG_BLUE];
-
+	neoisp_stat_hist_cfg_s *histBlue = &config->hists[kHistIds.b()];
+	histBlue->hist_ctrl_offset = 0;
+	histBlue->hist_ctrl_channel = NEO_HIST_CHANNEL_B;
+	histBlue->hist_ctrl_pattern = 0;
+	histBlue->hist_ctrl_dir_input1_dif = 0;
+	histBlue->hist_ctrl_lin_input1_log = 0;
+	histBlue->hist_scale_scale = histScale_[kHistIds.b()];
 }
 
 void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
@@ -365,9 +342,12 @@ Histogram Agc::parseStatistics(const NxpNeoStats *stats)
 {
 	auto histMemStats = stats->block<BlockStatsType::MHist>();
 
-	const uint32_t *binRed = &(histMemStats->hist_stat[AGC_HIST_MEM_RED]);
-	const uint32_t *binGreen = &(histMemStats->hist_stat[AGC_HIST_MEM_GREEN]);
-	const uint32_t *binBlue = &(histMemStats->hist_stat[AGC_HIST_MEM_BLUE]);
+	const uint32_t *binRed = &(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(
+							kHistIds.r(), Roi1)]);
+	const uint32_t *binGreen = &(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(
+							kHistIds.g(), Roi1)]);
+	const uint32_t *binBlue = &(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(
+							kHistIds.b(), Roi1)]);
 	Histogram histGreen{ Span<const uint32_t>(binGreen, NEO_HIST_BIN_SIZE) };
 
 	rgbTriples_.clear();
