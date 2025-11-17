@@ -39,6 +39,8 @@ struct IPAHwSettings {
 	uint32_t apiVersion;
 };
 
+static constexpr unsigned int kContextTypes = 2;
+
 struct IPASessionConfiguration {
 	struct {
 		std::array<neoisp_roi_cfg_s, NEO_AF_ROIS_CNT> rois;
@@ -110,7 +112,7 @@ struct IPAActiveState {
 		bool hwPositionUpdate;
 	} af;
 
-	struct {
+	struct agc {
 		struct {
 			uint32_t exposure;
 			double gain;
@@ -123,7 +125,8 @@ struct IPAActiveState {
 		uint32_t constraintMode;
 		uint32_t exposureMode;
 		bool autoEnabled;
-	} agc;
+	};
+	std::array<agc, kContextTypes> agc;
 
 	struct {
 		struct {
@@ -163,11 +166,12 @@ struct IPAFrameContext : public FrameContext {
 		controls::AfPauseStateEnum pauseState;
 	} af;
 
-	struct {
+	struct agc {
 		uint32_t exposure;
 		double gain;
 		bool autoEnabled;
-	} agc;
+	};
+	std::array<agc, kContextTypes> agc;
 
 	struct {
 		RGB<double> gains;
@@ -184,8 +188,11 @@ struct IPAFrameContext : public FrameContext {
 	} blc;
 
 	struct {
-		uint32_t exposure;
-		double gain;
+		struct agc {
+			uint32_t exposure;
+			double gain;
+		};
+		std::array<agc, kContextTypes> agc;
 		RGB<double> wbGains;
 		ControlList mdControls;
 		bool metaDataValid;

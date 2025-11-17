@@ -88,7 +88,7 @@ private:
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
 			    const ControlInfoMap &sensorControls,
 			    ControlInfoMap *ipaControls);
-	void updateFrameContextSensorMeta(const uint32_t frame);
+	void updateFrameContextSensorMeta(const uint32_t frame, const IPAContextType context);
 	void setControls(unsigned int frame, IPAContextType context);
 	std::string controlListToString(const ControlList *ctrls) const;
 	std::string logSensorParams(const unsigned int frame,
@@ -453,7 +453,7 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 	}
 
 	/* Update frame context with the sensor metadata */
-	updateFrameContextSensorMeta(frame);
+	updateFrameContextSensorMeta(frame, context);
 
 	ControlList metadata(controls::controls);
 	for (auto const &a : algorithms()) {
@@ -605,7 +605,7 @@ void IPANxpNeo::updateControls(const IPACameraSensorInfo &sensorInfo,
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
 }
 
-void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame)
+void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPAContextType context)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	ControlList &mdControls = frameContext.sensor.mdControls;
@@ -622,7 +622,7 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame)
 		exposure = context_.configuration.sensor.minExposureTime;
 	}
 
-	frameContext.sensor.exposure = context_.camHelper->exposureLines(
+	frameContext.sensor.agc[context].exposure = context_.camHelper->exposureLines(
 		exposure,
 		context_.configuration.sensor.lineDuration);
 
@@ -648,7 +648,7 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame)
 		LOG(NxpNeoIPA, Warning) << "No digital gain metadata";
 	}
 
-	frameContext.sensor.gain = aGain * dGain;
+	frameContext.sensor.agc[context].gain = aGain * dGain;
 
 	std::array<float, 4> wbGainsArray = { 1.0f, 1.0f, 1.0f, 1.0f };
 	if (mdControls.contains(md::WhiteBalanceGain.id())) {
@@ -677,10 +677,11 @@ void IPANxpNeo::setControls(unsigned int frame, IPAContextType context)
 	 */
 
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	auto agcFrameContext = frameContext.agc[context];
 
 	ControlList ctrls(sensorControls_);
 
-	Duration exposure = context_.camHelper->exposure(frameContext.agc.exposure,
+	Duration exposure = context_.camHelper->exposure(agcFrameContext.exposure,
 							 context_.configuration.sensor.lineDuration);
 
 	/*
@@ -694,7 +695,7 @@ void IPANxpNeo::setControls(unsigned int frame, IPAContextType context)
 	 * frames to be hidden.
 	 */
 	if (frame) {
-		context_.camHelper->controlListSetAGC(&ctrls, exposure, frameContext.agc.gain);
+		context_.camHelper->controlListSetAGC(&ctrls, exposure, agcFrameContext.gain);
 
 		if (context_.configuration.awb.awbGainInSensor) {
 			std::array<double, 4> wbGains;
@@ -715,7 +716,9 @@ void IPANxpNeo::setControls(unsigned int frame, IPAContextType context)
 	}
 
 	LOG(NxpNeoControlList, Debug)
-		<< logSensorParams(frame, &frameContext.sensor.mdControls, &ctrls);
+		<< logSensorParams(frame,
+				   &frameContext.sensor.mdControls,
+				   &ctrls);
 
 	setSensorControls.emit(frame, ctrls);
 }
