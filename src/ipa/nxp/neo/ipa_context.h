@@ -199,6 +199,8 @@ struct IPAFrameContext : public FrameContext {
 		float gamma;
 		bool update;
 	} goc;
+
+	IPAContextType contextType;
 };
 
 struct IPAContext {

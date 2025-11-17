@@ -343,6 +343,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 			      const std::map<uint32_t, uint32_t> &bufferIds)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	frameContext.contextType = context;
 
 	/*
 	 * Metadata parsing is done either from image pixel data top lines, or
@@ -435,6 +436,7 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 			     const ControlList &sensorControls)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	frameContext.contextType = context;
 
 	auto statsIter = bufferIds.find(IPABufferTypeStats);
 	unsigned int statsBufferId =
