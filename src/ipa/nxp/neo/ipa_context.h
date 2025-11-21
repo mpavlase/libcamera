@@ -41,6 +41,9 @@ struct IPAHwSettings {
 
 struct IPASessionConfiguration {
 	struct {
+		std::array<neoisp_roi_cfg_s, NEO_AF_ROIS_CNT> rois;
+		std::array<double, NEO_AF_ROIS_CNT> normalGains;
+
 		/* Lens position in dioptres */
 		float minLensPosition;
 		float maxLensPosition;

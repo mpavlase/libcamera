@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <limits>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
@@ -33,12 +34,95 @@ Af::Af()
 }
 
 /**
+ * \class Af
+ * \brief AutoFocus algorithm
+ *
+ * This class implements an IPA AutoFocus algorithm relying on a platform-
+ * agnostic implementation of the AfBase interface. As such, class implements
+ * the usual IPA algorithm callbacks, and the IPA-specific operations: user
+ * controls, metadata controls, ISP CDAF statistics configuration and
+ * collection, PDAF handling etc.
+ *
+ * Auto Focus unit:
+ * The AF block accumulates the output of convolution filters for each pixel
+ * within a ROI. The two configurable filters have a 3x3 dimension. For each
+ * relevant pixel, the absolute value of each filter is summed individually
+ * after right-shift. The resulting sum is truncated to a 32-bit value during
+ * accumulation.
+ * sum = min(0xffffffff, sum + abs(filtered) >> shift).
+ * with `filtered` being the result of the 3x3 convolution filter.
+ *
+ * Some parameters of the calibration file can be used to amend the default AF
+ * block configuration:
+ *   - filter0: the 9x coefficients of the 3x3 filter0 (s8).
+ *              default: Sobel horizontal filter
+ *   - filter1: the 9x coefficients of the 3x3 filter1 (s8).
+ *              default: Sobel vertical filter
+ *   - shift0: right-shift applied to filter0 accumulation (u5).
+ *              default: 8
+ *   - shift1: right-shift applied to filter1 accumulation (u5).
+ *              default: 8
+ */
+
+/**
  * \copydoc libcamera::ipa::Algorithm::init
  */
 int Af::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
 {
 	algo_ = std::make_unique<AfImpl>();
-	return algo_->doInit(tuningData);
+	int ret = algo_->doInit(tuningData);
+	if (ret)
+		return ret;
+
+	/* Parse calibration file ISP filters coefficients and shifts. */
+	static_assert(kFilterTapsCount == NEO_AF_FILTERS_CNT,
+		      "Unexpected numbers of AF filters taps");
+	auto parseFilter = [](const YamlObject &node,
+			      const std::string name,
+			      const std::array<int8_t, kFilterTapsCount> &defaultFilter,
+			      std::array<int8_t, kFilterTapsCount> &out) {
+		std::copy(defaultFilter.begin(), defaultFilter.end(), out.begin());
+		std::optional<std::vector<int8_t>> filter = node[name].getList<int8_t>();
+		if (filter) {
+			if (filter->size() != kFilterTapsCount)
+				LOG(NxpNeoAlgoAf, Warning) << "Invalid filter size for " << name;
+			else
+				std::copy(filter->begin(), filter->end(), out.begin());
+		}
+	};
+
+	parseFilter(tuningData, "filter0", kFilter0Default, filters_[0]);
+	parseFilter(tuningData, "filter1", kFilter1Default, filters_[1]);
+
+	auto parseShift = [](const YamlObject &node,
+			     const std::string name,
+			     const uint8_t defaultShift,
+			     uint8_t &out) {
+		std::optional<uint8_t> shift = node[name].get<uint8_t>();
+		out = defaultShift;
+		if (shift) {
+			uint8_t value = shift.value();
+			if (value > kShitMax)
+				LOG(NxpNeoAlgoAf, Warning) << "Invalid shit value for " << name;
+			else
+				out = value;
+		}
+	};
+
+	parseShift(tuningData, "shift0", kShiftDefault, shifts_[0]);
+	parseShift(tuningData, "shift1", kShiftDefault, shifts_[1]);
+
+	std::stringstream ss;
+	ss << "filter0: ";
+	for (auto coeff : filters_[0])
+		ss << +coeff << " ";
+	ss << "filter1: ";
+	for (auto coeff : filters_[1])
+		ss << +coeff << " ";
+	ss << "shift0: " << +shifts_[0] << " shift1: " << +shifts_[1];
+	LOG(NxpNeoAlgoAf, Debug) << ss.str();
+
+	return ret;
 }
 
 /**
@@ -65,6 +149,56 @@ int Af::configure([[maybe_unused]] IPAContext &context, const IPACameraSensorInf
 	afConfig.scaleX = analogCrop.width * 1.0 / width;
 	afConfig.scaleY = analogCrop.height * 1.0 / height;
 
+	/* Setup the 9 ROIs as a 3x3 grid */
+	static_assert(NEO_AF_REG_STATS_ROIS_CNT == 9);
+	const Size &size = configInfo.outputSize;
+	width = size.width / NEO_AF_BLOCK_NB_X;
+	height = size.height / NEO_AF_BLOCK_NB_Y;
+	for (size_t row = 0; row < NEO_AF_BLOCK_NB_Y; row++) {
+		for (size_t col = 0; col < NEO_AF_BLOCK_NB_X; col++) {
+			neoisp_roi_cfg_s &roi = afConfig.rois[row * NEO_AF_BLOCK_NB_X + col];
+			roi.xpos = col * width;
+			roi.ypos = row * height;
+			roi.width = col < NEO_AF_BLOCK_NB_X - 1
+					    ? width
+					    : (size.width - roi.xpos);
+			roi.height = row < NEO_AF_BLOCK_NB_Y - 1
+					     ? height
+					     : (size.height - roi.ypos);
+		}
+	}
+
+	/*
+	 * The metric used to estimate the contrast for a ROI is to compute the
+	 * L2 norm of the vector [filter0 sum, filter1 sum]. This metric is
+	 * normalized in the [0, 1] range after division by the gain factor of
+	 * the metric. Gain factor is computed at configure() time to later used
+	 * at process() time.
+	 * AF block is post DRC so pixel bitdepth is 12 bits.
+	 * Gain =
+	 *   {L2([filter0_gain, filter1_gain]) * max_pixel_value * pixel_count}
+	 * with:
+	 *   filterN_gain = L1([filterN coefficients]) / (2 ^ shiftN)
+	 *   max_pixel_value = 2^12 - 1 = 4095
+	 *   pixel_count = ROI width * height
+	 */
+	auto computeL1Norm = [](const std::array<int8_t, kFilterTapsCount> &filter) {
+		double l1Norm = 0.0;
+		for (int8_t coeff : filter)
+			l1Norm += std::abs(coeff);
+		return l1Norm;
+	};
+	double filter0Gain = computeL1Norm(filters_[0]) / (1 << shifts_[0]);
+	double filter1Gain = computeL1Norm(filters_[1]) / (1 << shifts_[1]);
+	double filtersL2Norm =
+		std::sqrt(filter0Gain * filter0Gain + filter1Gain * filter1Gain);
+	double pixelGain = filtersL2Norm * ((1 << 12) - 1);
+
+	for (auto const &[i, roi] : utils::enumerate(afConfig.rois)) {
+		unsigned int pixelCount = roi.width * roi.height;
+		afConfig.normalGains[i] = pixelGain * pixelCount;
+	}
+
 	/* Initialize the active state. */
 	auto &afState = context.activeState.af;
 	afState.mode = AfModeManual;
@@ -72,7 +206,25 @@ int Af::configure([[maybe_unused]] IPAContext &context, const IPACameraSensorInf
 	int32_t hwPosition;
 	algo_->setLensPosition(def, &hwPosition);
 
-	return algo_->doConfigure(configInfo);
+	int ret = algo_->doConfigure(configInfo);
+	if (ret)
+		return ret;
+
+	/*
+	 * When in metering auto mode, the focus area selected by the algorithm
+	 * is too broad because of the limited number of ROIs supported by the
+	 * AF block. Thus, start in metering windows mode, and configure the
+	 * center cell of the ISP 9x9 AF grid as the default window for focus.
+	 */
+	algo_->setMetering(AfMeteringWindows);
+	neoisp_roi_cfg_s &center = afConfig.rois[NEO_AF_ROIS_CNT / 2];
+	Rectangle rect{ center.xpos, center.ypos, center.width, center.height };
+	Span<Rectangle> windows{ &rect, 1 };
+	windowsToNative(windows, afConfig.cropX, afConfig.cropY,
+			afConfig.scaleX, afConfig.scaleY);
+	algo_->setWindows({ windows.data(), windows.size() });
+
+	return 0;
 }
 
 /**
@@ -247,6 +399,23 @@ void Af::prepare([[maybe_unused]] IPAContext &context,
 			}
 		}
 	}
+
+	/* ISP configuration */
+	if (frame > 0)
+		return;
+
+	auto config = params->block<BlockParamsType::Af>();
+	config.setUpdate(true);
+
+	auto &afConfig = context.configuration.af;
+	for (const auto &[i, roi] : utils::enumerate(afConfig.rois))
+		config->af_roi[i] = roi;
+	for (const auto &[i, coeff] : utils::enumerate(filters_[0]))
+		config->fil0_coeffs[i] = coeff;
+	config->fil0_shift_shift = shifts_[0];
+	for (const auto &[i, coeff] : utils::enumerate(filters_[1]))
+		config->fil1_coeffs[i] = coeff;
+	config->fil1_shift_shift = shifts_[1];
 }
 
 /**
@@ -258,10 +427,35 @@ void Af::process([[maybe_unused]] IPAContext &context,
 		 [[maybe_unused]] const NxpNeoStats *stats,
 		 ControlList &metadata)
 {
-	/* \todo populate CDAF statistics. */
+	auto afStats = stats->block<BlockStatsType::RAf>();
+	auto afConfig = context.configuration.af;
+
+	/* Populate CDAF statistics from the ISP AF grid. */
 	FocusRegions focusRegions;
+	focusRegions.init({ NEO_AF_BLOCK_NB_X, NEO_AF_BLOCK_NB_Y });
+	for (int row = 0; row < NEO_AF_BLOCK_NB_Y; row++) {
+		for (int col = 0; col < NEO_AF_BLOCK_NB_X; col++) {
+			size_t i = row * NEO_AF_BLOCK_NB_X + col;
+			double c0 = static_cast<double>(afStats->rois[i].sum0);
+			double c1 = static_cast<double>(afStats->rois[i].sum1);
+			double c = std::sqrt(c0 * c0 + c1 * c1);
+			double cNorm = c / afConfig.normalGains[i];
+			/*
+			 * [0, 1] contrast is scaled to an arbitrary value.
+			 * RPi AF algorithm implementation uses 1.0e9 as the
+			 * maximum cumulated and weighted value over all cells.
+			 */
+			double cScale = 1.0e6;
+			uint64_t val = static_cast<uint64_t>(cNorm * cScale);
+			RPiController::RegionStats<uint64_t>::Region
+				region{ val, 0, 0 };
+			focusRegions.set({ col, row }, region);
+		}
+	}
+
 	/* \todo populate AWB statistics. */
 	RgbyRegions awbRegions;
+
 	algo_->doProcess(focusRegions, awbRegions);
 
 	/* Populate metadata */

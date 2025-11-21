@@ -47,6 +47,23 @@ private:
 
 	std::unique_ptr<AfBase> algo_;
 	AfStatus status_;
+
+	static constexpr unsigned kFilterTapsCount = 9;
+	static constexpr unsigned kFiltersCount = 2;
+	std::array<std::array<int8_t, kFilterTapsCount>, kFiltersCount> filters_;
+
+	/*
+	 * Use Sobel filter as default contrast detection filter.
+	 * https://en.wikipedia.org/wiki/Sobel_operator
+	 */
+	static constexpr std::array<int8_t, kFilterTapsCount>
+		kFilter0Default{ -1, 0, 1, -2, 0, 2, -1, 0, 1 };
+	static constexpr std::array<int8_t, kFilterTapsCount>
+		kFilter1Default{ -1, -2, -1, 0, 0, 0, 1, 2, 1 };
+
+	static constexpr unsigned kShiftDefault = 8;
+	static constexpr unsigned kShitMax = 31;
+	std::array<uint8_t, kFiltersCount> shifts_;
 };
 
 } /* namespace ipa::nxpneo::algorithms */

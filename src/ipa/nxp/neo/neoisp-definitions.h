@@ -120,6 +120,13 @@ using ChannelArray = std::array<T, kObwbChannelsCount>;
 template<class T>
 using ObwbArray = std::array<T, kObwbInstancesCount>;
 
+/**
+ * AutoFocus
+ */
+
+#define NEO_AF_BLOCK_NB_X 3
+#define NEO_AF_BLOCK_NB_Y 3
+
 } /* namespace ipa::nxpneo */
 
 } /* namespace libcamera*/
