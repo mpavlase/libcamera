@@ -138,6 +138,8 @@ struct IPAActiveState {
 
 		unsigned int temperatureK;
 		bool autoEnabled;
+		std::array<std::array<RGB<uint64_t>, NEO_CTEMP_BLOCK_NB_X>, NEO_CTEMP_BLOCK_NB_Y>
+			blockSums;
 	} awb;
 
 	struct {
@@ -178,6 +180,7 @@ struct IPAFrameContext : public FrameContext {
 		bool autoEnabled;
 		/* Set of WB enabled flags for the 3 OBWB blocks */
 		std::array<bool, 3> colorGainsSet;
+		std::vector<RGB<double>> blockAverages;
 	} awb;
 
 	struct {
