@@ -179,7 +179,8 @@ public:
 #if USE_CUSTOM_CONTROLS
 	void setControls(const ControlList *sensorCtrls) override;
 	void controlListSetAGC(
-		ControlList *ctrls, Duration exposure, double gain) const override;
+		ControlList *ctrls, SensorContextTypes context,
+		Duration exposure, double gain) override;
 #endif
 
 	virtual void controlInfoMapGetExposureRange(
@@ -516,7 +517,8 @@ void CameraHelperMx95mbcam::setControls(const ControlList *sensorCtrls)
 }
 
 void CameraHelperMx95mbcam::controlListSetAGC(
-	ControlList *ctrls, Duration exposure, double gain) const
+	ControlList *ctrls, [[maybe_unused]] SensorContextTypes context,
+	Duration exposure, double gain)
 {
 	const uint32_t sensorConversionRatio = calcConvRatio(convGainQ16_);
 

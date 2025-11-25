@@ -96,6 +96,7 @@ private:
 				    const ControlList *ctrlsToApply) const;
 
 	static const std::map<const IPAModeType, SensorStreamModes> kSensorStreamModeMap;
+	static const std::map<const IPAContextType, SensorContextTypes> kSensorContextMap;
 	std::map<unsigned int, FrameBuffer> buffers_;
 	std::map<unsigned int, MappedFrameBuffer> mappedBuffers_;
 
@@ -114,6 +115,11 @@ const std::map<const IPAModeType, SensorStreamModes> IPANxpNeo::kSensorStreamMod
 	{ IPAModeTypeHdrMerge, SensorStreamHdr },
 	{ IPAModeTypeRgbIr, SensorStreamRgbIr },
 	{ IPAModeTypeRgbIrDual, SensorStreamDualContext },
+};
+
+const std::map<const IPAContextType, SensorContextTypes> IPANxpNeo::kSensorContextMap = {
+	{ IPAContextTypeRgb, SensorContextRgb },
+	{ IPAContextTypeIr, SensorContextIr },
 };
 
 namespace {
@@ -607,7 +613,8 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::Exposure.id());
 		Span<const float> exposuresSpan =
 			exposureValue.get<Span<const float>>();
-		exposure = exposuresSpan[0] * 1.0s;
+		ASSERT(exposuresSpan.size() > context);
+		exposure = exposuresSpan[context] * 1.0s;
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No exposure metadata";
 		exposure = context_.configuration.sensor.minExposureTime;
@@ -623,7 +630,8 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::AnalogueGain.id());
 		Span<const float> aGainsSpan =
 			aGainValue.get<Span<const float>>();
-		aGain = aGainsSpan[0];
+		ASSERT(aGainsSpan.size() > context);
+		aGain = aGainsSpan[context];
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No analog gain metadata";
 	}
@@ -634,7 +642,8 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::DigitalGain.id());
 		Span<const float> dGainsSpan =
 			dGainValue.get<Span<const float>>();
-		dGain = dGainsSpan[0];
+		ASSERT(dGainsSpan.size() > context);
+		dGain = dGainsSpan[context];
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No digital gain metadata";
 	}
@@ -686,7 +695,8 @@ void IPANxpNeo::setControls(unsigned int frame, IPAContextType context)
 	 * frames to be hidden.
 	 */
 	if (frame) {
-		context_.camHelper->controlListSetAGC(&ctrls, exposure, agcFrameContext.gain);
+		context_.camHelper->controlListSetAGC(&ctrls, kSensorContextMap.at(context),
+						      exposure, agcFrameContext.gain);
 
 		if (context_.configuration.awb.awbGainInSensor) {
 			std::array<double, 4> wbGains;
@@ -711,7 +721,17 @@ void IPANxpNeo::setControls(unsigned int frame, IPAContextType context)
 				   &frameContext.sensor.mdControls,
 				   &ctrls);
 
-	setSensorControls.emit(frame, ctrls);
+	/*
+	 * In RGBIr dual mode, the controls should be sent:
+	 * - for context Ir only
+	 * After processing the Ir context, the multi controls are updated
+	 * with both context of the frame.
+	 */
+	if (context_.configuration.pipelineMode != IPAModeTypeRgbIrDual ||
+	    (context_.configuration.pipelineMode == IPAModeTypeRgbIrDual &&
+	     context == IPAContextTypeIr)) {
+		setSensorControls.emit(frame, ctrls);
+	}
 }
 
 std::string IPANxpNeo::controlListToString(const ControlList *ctrls) const
