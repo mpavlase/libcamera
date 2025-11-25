@@ -453,8 +453,19 @@ void Af::process([[maybe_unused]] IPAContext &context,
 		}
 	}
 
-	/* \todo populate AWB statistics. */
+	/* Populate AWB statistics from the CTEMP grid. */
+	const auto &blockSums = context.activeState.awb.blockSums;
 	RgbyRegions awbRegions;
+	awbRegions.init({ NEO_CTEMP_BLOCK_NB_X, NEO_CTEMP_BLOCK_NB_Y });
+	for (int row = 0; row < NEO_CTEMP_BLOCK_NB_Y; row++) {
+		for (int col = 0; col < NEO_CTEMP_BLOCK_NB_X; col++) {
+			const RGB<uint64_t> &sum = blockSums[row][col];
+			/* \todo compute ySum - unused by algorithm as of now.*/
+			RPiController::RegionStats<RgbySums>::Region
+				region{ { sum.r(), sum.g(), sum.b() }, 0, 0 };
+			awbRegions.set({ col, row }, region);
+		}
+	}
 
 	algo_->doProcess(focusRegions, awbRegions);
 
