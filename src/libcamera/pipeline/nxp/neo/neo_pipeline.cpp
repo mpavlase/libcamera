@@ -339,6 +339,7 @@ private:
 
 	std::unique_ptr<CameraSensor> sensor_;
 	std::unique_ptr<NeoDevice> neo_;
+	std::shared_ptr<MediaDevice> neoMedia_;
 	const CameraInfo *cameraInfo_;
 	std::optional<Orientation> defaultOrientation_;
 	std::map<Size, std::vector<unsigned int>> formatsSizeToCodes_;
@@ -452,6 +453,7 @@ private:
 	unsigned int numCamerasYuv_ = 0;
 	unsigned int acquireCount_ = 0;
 	std::shared_ptr<ISIDevice> isi_;
+	std::shared_ptr<MediaDevice> isiMedia_;
 };
 
 namespace {
@@ -1235,12 +1237,12 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 	isi.add(ISIDevice::kSDevPipeEntityName(0));
 	isi.add(ISIDevice::kVDevPipeEntityName(0));
 
-	MediaDevice *isiMedia = acquireMediaDevice(enumerator, isi);
-	if (!isiMedia)
+	isiMedia_ = acquireMediaDevice(enumerator, isi);
+	if (!isiMedia_)
 		return false;
 
 	isi_ = std::make_shared<ISIDevice>();
-	ret = isi_->init(isiMedia);
+	ret = isi_->init(isiMedia_.get());
 	if (ret) {
 		LOG(NxpNeoPipe, Debug) << "ISI media device init failed";
 		return false;
@@ -1251,7 +1253,7 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 		return false;
 
 	/* Discover camera entities from the frontend media controller device. */
-	std::vector<MediaEntity *> sensorsEntities = locateSensors(isiMedia);
+	std::vector<MediaEntity *> sensorsEntities = locateSensors(isiMedia_.get());
 	for (MediaEntity *entity : sensorsEntities) {
 		ret = createCamera(entity, enumerator);
 		if (ret)
@@ -1920,9 +1922,8 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 		isp.add(NeoDevice::kVDevEntityIrName());
 		isp.add(NeoDevice::kVDevEntityStatsName());
 
-		MediaDevice *neoDevice =
-			pipe()->acquireMediaDevice(enumerator, isp);
-		if (!neoDevice)
+		neoMedia_ = pipe()->acquireMediaDevice(enumerator, isp);
+		if (!neoMedia_)
 			return -EINVAL;
 
 		/*
@@ -1930,7 +1931,7 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 		 * cameras already detected.
 		 */
 		neo_ = std::make_unique<NeoDevice>(pipe()->numCamerasRaw());
-		ret = neo_->init(neoDevice);
+		ret = neo_->init(neoMedia_.get());
 		if (ret)
 			return ret;
 
