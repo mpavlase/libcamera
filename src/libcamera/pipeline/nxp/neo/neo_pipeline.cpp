@@ -2272,8 +2272,11 @@ int NxpNeoCameraData::allocateBuffersRaw()
 	auto registerPoolBuffers =
 		[&](std::vector<std::unique_ptr<FrameBuffer>> *_pool, BufferType _bufferType) {
 			for (const std::unique_ptr<FrameBuffer> &buffer : *_pool) {
+				Span<const FrameBuffer::Plane> planes = buffer->planes();
 				buffer->setCookie(ipaBufferId++);
-				ipaBuffers_.emplace_back(buffer->cookie(), buffer->planes());
+				ipaBuffers_.emplace_back(buffer->cookie(),
+							 std::vector<FrameBuffer::Plane>{ planes.begin(),
+											  planes.end() });
 				availableBuffersMap_[_bufferType].push(buffer.get());
 			}
 		};
