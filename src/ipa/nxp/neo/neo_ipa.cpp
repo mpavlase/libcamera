@@ -698,7 +698,7 @@ void IPANxpNeo::setControls(unsigned int frame, IPAContextType context)
 	LOG(NxpNeoControlList, Debug)
 		<< logSensorParams(frame, &frameContext.sensor.mdControls, &ctrls);
 
-	setSensorControls.emit(frame, context, ctrls);
+	setSensorControls.emit(frame, ctrls);
 }
 
 std::string IPANxpNeo::controlListToString(const ControlList *ctrls) const
