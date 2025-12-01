@@ -1961,12 +1961,8 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 		}
 		defaultOrientation_ = tryOrientation;
 	}
-	if (multiCamera() && !defaultOrientation_.has_value()) {
-		const auto &rotation = properties_.get(properties::Rotation);
-		Orientation mountingOrientation =
-			orientationFromRotation(rotation.value_or(0));
-		defaultOrientation_ = mountingOrientation;
-	}
+	if (multiCamera() && !defaultOrientation_.has_value())
+		defaultOrientation_ = sensor_->mountingOrientation();
 
 	/*
 	 * Connect video devices' 'bufferReady' signals to their
