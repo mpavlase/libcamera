@@ -420,7 +420,6 @@ public:
 	bool match(DeviceEnumerator *enumerator) override;
 
 	bool acquireDevice(Camera *camera) override;
-	void releaseDevice(Camera *camera) override;
 
 	ISIDevice *isiDevice() const { return isi_.get(); }
 	const PipelineConfig *pipelineConfig() { return &pipelineConfig_; }
@@ -452,7 +451,6 @@ private:
 
 	unsigned int numCamerasRaw_ = 0;
 	unsigned int numCamerasYuv_ = 0;
-	unsigned int acquireCount_ = 0;
 	std::shared_ptr<ISIDevice> isi_;
 	std::shared_ptr<MediaDevice> isiMedia_;
 };
@@ -1273,11 +1271,9 @@ bool PipelineHandlerNxpNeo::acquireDevice(Camera *camera)
 	NxpNeoCameraData *data = cameraData(camera);
 
 	LOG(NxpNeoPipe, Debug) << "acquireDevice " << data->cameraName()
-			       << " count " << acquireCount_;
-	if (acquireCount_ > 0) {
-		acquireCount_++;
+			       << " count " << useCount();
+	if (useCount() > 0)
 		return true;
-	}
 
 	/*
 	 * Frontend media controller device has been locked by the process.
@@ -1294,18 +1290,7 @@ bool PipelineHandlerNxpNeo::acquireDevice(Camera *camera)
 	if (ret)
 		return false;
 
-	acquireCount_++;
 	return true;
-}
-
-void PipelineHandlerNxpNeo::releaseDevice(Camera *camera)
-{
-	NxpNeoCameraData *data = cameraData(camera);
-
-	ASSERT(acquireCount_);
-	acquireCount_--;
-	LOG(NxpNeoPipe, Debug) << "releaseDevice " << data->cameraName()
-			       << " count " << acquireCount_;
 }
 
 /**
