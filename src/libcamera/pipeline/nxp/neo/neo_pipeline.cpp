@@ -325,7 +325,7 @@ private:
 			       unsigned int bytesused);
 	void ipaMetadataReady(unsigned int id, ipa::nxpneo::IPAContextType context,
 			      const ControlList &metadata);
-	void ipaSetSensorControls(unsigned int id, ipa::nxpneo::IPAContextType context,
+	void ipaSetSensorControls(unsigned int id,
 				  const ControlList &sensorControls);
 	void ipaSetLensControls(const ControlList &lensControls);
 	unsigned int contextCount() { return mode_ == ModeTypeRgbIrDual ? 2 : 1; }
@@ -3323,7 +3323,6 @@ void NxpNeoCameraData::ipaMetadataReady(unsigned int id,
 }
 
 void NxpNeoCameraData::ipaSetSensorControls([[maybe_unused]] unsigned int id,
-					    [[maybe_unused]] ipa::nxpneo::IPAContextType context,
 					    const ControlList &sensorControls)
 {
 	delayedCtrls_->push(sensorControls);
