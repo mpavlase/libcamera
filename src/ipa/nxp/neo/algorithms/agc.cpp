@@ -55,6 +55,7 @@ const RGB<uint8_t> Agc::kHistIds{ { Agc::Hist0, Agc::Hist1, Agc::Hist2 } };
 
 Agc::Agc()
 {
+	supportsIr_ = true;
 }
 
 /**
