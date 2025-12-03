@@ -398,11 +398,27 @@ private:
 	Transform combinedTransform_;
 };
 
+namespace {
+
+/*
+ * Maximum number of requests that shall be queued into the pipeline to keep
+ * the regulation fast.
+ */
+static constexpr unsigned int kNeoIspMaxQueuedRequests = 4;
+
+/*
+ * This many internal buffers (or rather parameter and statistics buffer
+ * pairs) ensures that the pipeline runs smoothly, without frame drops.
+ */
+static constexpr unsigned int kNeoIspMinBufferCount = 4;
+
+} /* namespace */
+
 class PipelineHandlerNxpNeo : public PipelineHandler
 {
 public:
 	PipelineHandlerNxpNeo(CameraManager *manager)
-		: PipelineHandler(manager) {}
+		: PipelineHandler(manager, kNeoIspMaxQueuedRequests) {}
 
 	std::unique_ptr<CameraConfiguration> generateConfiguration(Camera *camera,
 								   Span<const StreamRole> roles) override;
@@ -1063,9 +1079,10 @@ CameraConfiguration::Status NxpNeoCameraConfiguration::validateRaw()
 			return Invalid;
 		}
 
-		const GlobalInfo &globalInfo =
-			data_->pipe()->pipelineConfig()->globalInfo();
-		cfg->bufferCount = globalInfo.bufferCount;
+		if (cfg->bufferCount < kNeoIspMinBufferCount) {
+			cfg->bufferCount = kNeoIspMinBufferCount;
+			status = Adjusted;
+		}
 
 		if (cfg->pixelFormat != originalCfg.pixelFormat ||
 		    cfg->size != originalCfg.size) {
@@ -1160,9 +1177,10 @@ CameraConfiguration::Status NxpNeoCameraConfiguration::validateYuv()
 	cfg.stride = devFormat.planes[0].bpl;
 	cfg.frameSize = devFormat.planes[0].size;
 
-	const GlobalInfo &globalInfo =
-		data_->pipe()->pipelineConfig()->globalInfo();
-	cfg.bufferCount = globalInfo.bufferCount;
+	if (cfg.bufferCount < kNeoIspMinBufferCount) {
+		cfg.bufferCount = kNeoIspMinBufferCount;
+		status = Adjusted;
+	}
 
 	if (cfg.pixelFormat != originalCfg.pixelFormat ||
 	    cfg.size != originalCfg.size) {
@@ -2245,14 +2263,9 @@ int NxpNeoCameraData::allocateBuffers()
 
 int NxpNeoCameraData::allocateBuffersRaw()
 {
-	unsigned int bufferCount;
-	bufferCount = std::max({
-		streamFrame_.configuration().bufferCount,
-		streamIr_.configuration().bufferCount,
-		streamRaw_.configuration().bufferCount,
-	});
-
+	unsigned int bufferCount = kNeoIspMaxQueuedRequests;
 	unsigned int ipaBufferId = 1;
+
 	auto registerPoolBuffers =
 		[&](std::vector<std::unique_ptr<FrameBuffer>> *_pool, BufferType _bufferType) {
 			for (const std::unique_ptr<FrameBuffer> &buffer : *_pool) {
