@@ -463,15 +463,6 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 		algo->process(context_, frame, frameContext, &stats, metadata);
 	}
 
-	/*
-	 * \todo Create IR-specific controls and have relevant algorithms to
-	 *       use them during RGBIr context processing. For now just clear
-	 *       the RGBIr context metadata to avoid merge conflict of the 2
-	 *       contexts metadata being populated with the same controls.
-	 */
-	if (context == IPAContextTypeIr)
-		metadata.clear();
-
 	setControls(frame, context);
 	metadataReady.emit(frame, context, metadata);
 }
