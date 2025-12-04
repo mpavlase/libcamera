@@ -437,7 +437,7 @@ void AgcStatsRgb::setupHistograms(IPAContext &context, NxpNeoParams *params) con
 {
 	/* STAT Histogram configuration for RGB channels */
 	auto statConfig = params->block<BlockParamsType::Stat>();
-	statConfig.setUpdate(true);
+	statConfig.setEnabled(true);
 
 	/* Foreground ROI disabled (> Image geometry means invalid ROI) */
 	statConfig->roi0.xpos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
@@ -610,7 +610,6 @@ void AgcStatsIr::setupHistograms(IPAContext &context, NxpNeoParams *params) cons
 {
 	/* RGBIR Histogram configuration for the Ir channel*/
 	auto rgbirConfig = params->block<BlockParamsType::RgbIr>();
-	rgbirConfig.setUpdate(true);
 
 	rgbirConfig->roi[0].xpos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
 	rgbirConfig->roi[0].ypos = HIST_ROI_INVALID_IMAGE_GEOMETRY;

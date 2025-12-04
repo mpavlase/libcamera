@@ -354,34 +354,35 @@ void BlackLevelCorrection::prepare(IPAContext &context,
 	 */
 	if (!enabled_)
 		return;
+
 	const auto &blcConfig = context.configuration.blc;
 
-	auto obwb0Config = params->block<BlockParamsType::Obwb0>();
-	auto obwb1Config = params->block<BlockParamsType::Obwb1>();
-	auto obwb2Config = params->block<BlockParamsType::Obwb2>();
-
-	const std::array<neoisp_obwb_cfg_s *, 3> obwbBlocks = {
-		reinterpret_cast<neoisp_obwb_cfg_s *>(obwb0Config.data().data()),
-		reinterpret_cast<neoisp_obwb_cfg_s *>(obwb1Config.data().data()),
-		reinterpret_cast<neoisp_obwb_cfg_s *>(obwb2Config.data().data()),
-	};
-
 	for (const uint8_t &obwb : obwbs_) {
+		struct neoisp_obwb_cfg_s *config;
+
 		if (obwb == 0) {
-			obwb0Config.setUpdate(true);
+			auto obwb0Config = params->block<BlockParamsType::Obwb0>();
+			obwb0Config.setEnabled(true);
 			obwb0Config->ctrl_obpp = blcConfig.obwbObpp[0];
+
+			config = reinterpret_cast<neoisp_obwb_cfg_s *>(obwb0Config.params());
 		} else if (obwb == 1) {
-			obwb1Config.setUpdate(true);
+			auto obwb1Config = params->block<BlockParamsType::Obwb1>();
+			obwb1Config.setEnabled(true);
 			obwb1Config->ctrl_obpp = blcConfig.obwbObpp[1];
+
+			config = reinterpret_cast<neoisp_obwb_cfg_s *>(obwb1Config.params());
 		} else if (obwb == 2) {
-			obwb2Config.setUpdate(true);
+			auto obwb2Config = params->block<BlockParamsType::Obwb2>();
+			obwb2Config.setEnabled(true);
 			obwb2Config->ctrl_obpp = blcConfig.obwbObpp[2];
+
+			config = reinterpret_cast<neoisp_obwb_cfg_s *>(obwb2Config.params());
 		} else {
 			LOG(NxpNeoAlgoBlc, Warning) << "Invalid OBWB" << +obwb << " block,";
 			continue;
 		}
 
-		neoisp_obwb_cfg_s *config = obwbBlocks[obwb];
 		const ChannelArray<uint16_t> &offsets = blcConfig.obwbOffsets[obwb];
 
 		config->r_ctrl_offset = offsets[0];

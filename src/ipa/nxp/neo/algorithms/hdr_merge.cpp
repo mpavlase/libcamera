@@ -534,9 +534,8 @@ void HdrMerge::prepare([[maybe_unused]] IPAContext &context, const uint32_t fram
 
 	/* HDR Merge block configuration */
 	auto config = params->block<BlockParamsType::HdrMerge>();
-	config.setUpdate(true);
+	config.setEnabled(true);
 
-	config->ctrl_enable = 1;
 	config->ctrl_obpp = obpp_;
 	config->ctrl_motion_fix_en = motionfixEn_;
 	config->ctrl_blend_3x3 = blend3x3_;

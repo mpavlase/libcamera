@@ -392,10 +392,7 @@ void LensShadingCorrection::prepare(IPAContext &context,
 			return;
 	} else {
 		auto vigCtrlConfig = params->block<BlockParamsType::VigCtrl>();
-		vigCtrlConfig.setUpdate(true);
-
-		/* \todo Once setEnabled is available don't update ctrl_enable here */
-		vigCtrlConfig->ctrl_enable = frameContext.lsc.enabled ? 1 : 0;
+		vigCtrlConfig.setEnabled(frameContext.lsc.enabled);
 		vigCtrlConfig->blk_conf_cols = blockCountX_;
 		vigCtrlConfig->blk_conf_rows = blockCountY_;
 		vigCtrlConfig->blk_size_xsize = blockWidth_;
@@ -408,7 +405,7 @@ void LensShadingCorrection::prepare(IPAContext &context,
 		return;
 
 	auto vigTableConfig = params->block<BlockParamsType::VigTable>();
-	vigTableConfig.setUpdate(true);
+	vigTableConfig.setEnabled(true);
 
 	/* Copy table */
 	const Components &set = sets_.getInterpolated(quantizedCt);

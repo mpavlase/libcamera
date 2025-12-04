@@ -173,7 +173,7 @@ void PipeConf::prepare(IPAContext &context, const uint32_t frame,
 
 	/* PIPE_CONF unit configuration */
 	auto config = params->block<BlockParamsType::PipeConf>();
-	config.setUpdate(true);
+	config.setEnabled(true);
 
 	IPAPipelineMode &mode = context.configuration.pipelineMode;
 	uint8_t lpAlignAuto = mode != IPAPipelineMode::HdrMerge ? 1 : 0;

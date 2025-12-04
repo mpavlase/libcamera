@@ -350,26 +350,31 @@ void Awb::updateObwbGains(IPAContext &context, const uint32_t frame,
 			  IPAFrameContext &frameContext, NxpNeoParams *params)
 {
 	auto &awbConfig = context.configuration.awb;
-	auto obwb0Config = params->block<BlockParamsType::Obwb0>();
-	auto obwb1Config = params->block<BlockParamsType::Obwb1>();
-	auto obwb2Config = params->block<BlockParamsType::Obwb2>();
-
-	const std::array<neoisp_obwb_cfg_s *, 3> obwbBlocks = {
-		reinterpret_cast<neoisp_obwb_cfg_s *>(obwb0Config.data().data()),
-		reinterpret_cast<neoisp_obwb_cfg_s *>(obwb1Config.data().data()),
-		reinterpret_cast<neoisp_obwb_cfg_s *>(obwb2Config.data().data()),
-	};
 
 	for (const uint8_t &obwb : obwbs_) {
+		struct neoisp_obwb_cfg_s *config;
+
 		if (obwb == 0) {
-			obwb0Config.setUpdate(true);
+			auto obwb0Config = params->block<BlockParamsType::Obwb0>();
+
+			obwb0Config.setEnabled(true);
 			obwb0Config->ctrl_obpp = awbConfig.obwbObpp[0];
+
+			config = reinterpret_cast<neoisp_obwb_cfg_s *>(obwb0Config.params());
 		} else if (obwb == 1) {
-			obwb1Config.setUpdate(true);
+			auto obwb1Config = params->block<BlockParamsType::Obwb1>();
+
+			obwb1Config.setEnabled(true);
 			obwb1Config->ctrl_obpp = awbConfig.obwbObpp[1];
+
+			config = reinterpret_cast<neoisp_obwb_cfg_s *>(obwb1Config.params());
 		} else if (obwb == 2) {
-			obwb2Config.setUpdate(true);
+			auto obwb2Config = params->block<BlockParamsType::Obwb2>();
+
+			obwb2Config.setEnabled(true);
 			obwb2Config->ctrl_obpp = awbConfig.obwbObpp[2];
+
+			config = reinterpret_cast<neoisp_obwb_cfg_s *>(obwb2Config.params());
 		} else {
 			LOG(NxpNeoAlgoAwb, Warning) << "Invalid OBWB" << +obwb << " block";
 			continue;
@@ -393,7 +398,6 @@ void Awb::updateObwbGains(IPAContext &context, const uint32_t frame,
 		gains[2] = frameContext.awb.gains.g() * awbConfig.blcFactors[obwb][2];
 		gains[3] = frameContext.awb.gains.b() * awbConfig.blcFactors[obwb][3];
 
-		neoisp_obwb_cfg_s *config = obwbBlocks[obwb];
 		config->r_ctrl_gain = gainDouble2Param(gains[0]);
 		config->gr_ctrl_gain = gainDouble2Param(gains[1]);
 		config->gb_ctrl_gain = gainDouble2Param(gains[2]);
@@ -426,10 +430,8 @@ void Awb::updateObwbGains(IPAContext &context, const uint32_t frame,
 void Awb::configureCtempStats(IPAContext &context, NxpNeoParams *params)
 {
 	auto ctempConfig = params->block<BlockParamsType::CTemp>();
-	ctempConfig.setUpdate(true);
+	ctempConfig.setEnabled(true);
 
-	/* Enable CTEMP measurements */
-	ctempConfig->ctrl_enable = 1;
 	/* Enable color space correction on the input pixel components
 	   before measurements */
 	ctempConfig->ctrl_cscon = 1;

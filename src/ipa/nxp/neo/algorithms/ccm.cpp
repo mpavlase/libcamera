@@ -93,7 +93,7 @@ void Ccm::setParameters(NxpNeoParams *params,
 	Matrix<float, 3, 3> CSC = RGB2YUV * matrix;
 
 	auto config = params->block<BlockParamsType::Rgb2Yuv>();
-	config.setUpdate(true);
+	config.setEnabled(true);
 
 	/* NEO ISP gain format is u8.8 */
 	config->gain_ctrl_rgain = 256;

@@ -692,13 +692,13 @@ void Drc::prepare([[maybe_unused]] IPAContext &context,
 	if (update) {
 		auto drcGlobalTonemapConfig = params->block<BlockParamsType::DrcGlobalTonemap>();
 		/* Set global lut */
-		drcGlobalTonemapConfig.setUpdate(true);
+		drcGlobalTonemapConfig.setEnabled(true);
 
 		std::copy(gblLut_.begin(), gblLut_.end(), drcGlobalTonemapConfig->drc_global_tonemap);
 	}
 
 	auto drcConfig = params->block<BlockParamsType::DrComp>();
-	drcConfig.setUpdate(true);
+	drcConfig.setEnabled(true);
 
 	/* Set global gain */
 	drcConfig->lcl_stretch_stretch = kLocalStretchvalue;

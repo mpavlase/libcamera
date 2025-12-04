@@ -330,9 +330,7 @@ void HdrDecomp::prepare([[maybe_unused]] IPAContext &context,
 		<< input0_.userConfig << "/" << input1_.userConfig;
 
 	auto hdrdec0Config = params->block<BlockParamsType::HdrDec0>();
-	hdrdec0Config.setUpdate(true);
-
-	hdrdec0Config->ctrl_enable = 1;
+	hdrdec0Config.setEnabled(true);
 
 	hdrdec0Config->knee_point1 = input0_.points[0];
 	hdrdec0Config->knee_point2 = input0_.points[1];
@@ -358,9 +356,7 @@ void HdrDecomp::prepare([[maybe_unused]] IPAContext &context,
 	hdrdec0Config->knee_ratio4 = input0_.ratios[4];
 
 	auto hdrdec1Config = params->block<BlockParamsType::HdrDec1>();
-	hdrdec1Config.setUpdate(true);
-
-	hdrdec1Config->ctrl_enable = 1;
+	hdrdec1Config.setEnabled(true);
 
 	hdrdec1Config->knee_point1 = input1_.points[0];
 	hdrdec1Config->knee_point2 = input1_.points[1];

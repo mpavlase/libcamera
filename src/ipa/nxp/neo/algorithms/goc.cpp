@@ -359,7 +359,7 @@ void GammaOutCorrection::prepare(IPAContext &context,
 
 	/* Enable GCM block configuration. */
 	auto config = params->block<BlockParamsType::Gcm>();
-	config.setUpdate(true);
+	config.setEnabled(true);
 
 	/* Set GCM params. */
 	setYuv2RgbParams(*config);

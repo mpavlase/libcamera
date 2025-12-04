@@ -409,7 +409,7 @@ void Af::prepare([[maybe_unused]] IPAContext &context,
 		return;
 
 	auto config = params->block<BlockParamsType::Af>();
-	config.setUpdate(true);
+	config.setEnabled(true);
 
 	auto &afConfig = context.configuration.af;
 	for (const auto &[i, roi] : utils::enumerate(afConfig.rois))
