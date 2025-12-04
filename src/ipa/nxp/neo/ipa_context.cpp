@@ -30,8 +30,8 @@ namespace libcamera::ipa::nxpneo {
  * \var IPAHwSettings::hwCapabilities
  * \brief Neoisp HW and driver capabilities flags
  *
- * \var IPAHwSettings::apiVersion
- * \brief Neoisp uAPI meta version
+ * \var IPAHwSettings::supportedParamsBlocks
+ * \brief Bit mask to store ISP blocks supported by Neoisp HW
  */
 
 /**

@@ -137,10 +137,11 @@ int IPANxpNeo::init(const IPASettings &settings, const InitParams &params,
 
 	LOG(NxpNeoIPA, Debug) << "Hardware revision is " << params.hwRevision;
 	LOG(NxpNeoIPA, Debug) << "Sensor entity: " << params.sensorEntity;
-	LOG(NxpNeoIPA, Debug) << "API version is " << params.apiVersion;
+	LOG(NxpNeoIPA, Debug) << "SupportedBlockParams mask "
+			      << utils::hex(params.supportedParamsBlocks);
 
 	/* Set the hardware-related block for the algorithms. */
-	context_.hw.apiVersion = params.apiVersion;
+	context_.hw.supportedParamsBlocks = params.supportedParamsBlocks;
 	context_.hw.hwRevision = params.hwRevision;
 	context_.hw.hwCapabilities = params.hwCapabilities;
 
@@ -404,8 +405,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPACameraContext conte
 		return;
 	}
 
-	NxpNeoParams params(context_.hw.apiVersion,
-			    mappedBuffers_.at(paramsBufferId).planes()[0]);
+	NxpNeoParams params(mappedBuffers_.at(paramsBufferId).planes()[0]);
 
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
@@ -414,7 +414,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPACameraContext conte
 		algo->prepare(context_, frame, frameContext, &params);
 	}
 
-	paramsComputed.emit(frame, context, params.size());
+	paramsComputed.emit(frame, context, params.bytesused());
 
 	const auto afState = context_.activeState.af;
 	if (lensPresent_ && afState.hwPositionUpdate && afState.hwPosition) {
@@ -442,9 +442,6 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPACameraContext contex
 		return;
 	}
 
-	const NxpNeoStats stats(context_.hw.apiVersion,
-				mappedBuffers_.at(statsBufferId).planes()[0]);
-
 	ControlList &mdControls = frameContext.sensor.mdControls;
 
 	if (!frameContext.sensor.metaDataValid) {
@@ -455,6 +452,7 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPACameraContext contex
 	/* Update frame context with the sensor metadata */
 	updateFrameContextSensorMeta(frame, context);
 
+	const NxpNeoStats stats(mappedBuffers_.at(statsBufferId).planes()[0]);
 	ControlList metadata(controls::controls);
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());

@@ -42,7 +42,7 @@ namespace ipa::nxpneo {
 struct IPAHwSettings {
 	uint32_t hwRevision;
 	uint32_t hwCapabilities;
-	uint32_t apiVersion;
+	uint64_t supportedParamsBlocks;
 };
 
 struct IPASessionConfiguration {
