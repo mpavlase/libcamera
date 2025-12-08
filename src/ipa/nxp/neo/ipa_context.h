@@ -44,11 +44,6 @@ struct IPASessionConfiguration {
 		std::array<neoisp_roi_cfg_s, NEO_AF_ROIS_CNT> rois;
 		std::array<double, NEO_AF_ROIS_CNT> normalGains;
 
-		/* Lens position in dioptres */
-		float minLensPosition;
-		float maxLensPosition;
-		float defLensPosition;
-
 		/* Camera mode */
 		uint16_t cropX;
 		uint16_t cropY;

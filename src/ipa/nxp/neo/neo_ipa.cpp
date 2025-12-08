@@ -124,18 +124,6 @@ const ControlInfoMap::Map ipaDefaultControls{
 	{ &controls::Gamma, ControlInfo(0.5f, 10.0f, 2.2f) },
 };
 
-/* Optional IPA controls */
-const ControlInfoMap::Map ipaAfControls{
-	{ &controls::AfMode, ControlInfo(controls::AfModeValues) },
-	{ &controls::AfRange, ControlInfo(controls::AfRangeValues) },
-	{ &controls::AfSpeed, ControlInfo(controls::AfSpeedValues) },
-	{ &controls::AfMetering, ControlInfo(controls::AfMeteringValues) },
-	{ &controls::AfWindows, ControlInfo(Rectangle{}, Rectangle(65535, 65535, 65535, 65535), Rectangle{}) },
-	{ &controls::AfTrigger, ControlInfo(controls::AfTriggerValues) },
-	{ &controls::AfPause, ControlInfo(controls::AfPauseValues) },
-	{ &controls::LensPosition, ControlInfo(0.0f, 32.0f, 1.0f) }
-};
-
 } /* namespace */
 
 IPANxpNeo::IPANxpNeo()
@@ -593,17 +581,7 @@ void IPANxpNeo::updateControls(const IPACameraSensorInfo &sensorInfo,
 	ctrlMap[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
 							      frameDurations[1],
 							      frameDurations[2]);
-	ctrlMap.merge(context_.ctrlMap);
-
-	if (lensPresent_) {
-		ctrlMap.merge(ControlInfoMap::Map(ipaAfControls));
-
-		const auto &afConfig = context_.configuration.af;
-		float min = afConfig.minLensPosition;
-		float max = afConfig.maxLensPosition;
-		float def = afConfig.defLensPosition;
-		ctrlMap[&controls::LensPosition] = ControlInfo(min, max, def);
-	}
+	ctrlMap.insert(context_.ctrlMap.begin(), context_.ctrlMap.end());
 
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
 }

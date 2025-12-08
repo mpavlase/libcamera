@@ -16,6 +16,7 @@
 #include <libcamera/base/utils.h>
 
 #include <libcamera/control_ids.h>
+#include <libcamera/controls.h>
 #include <libcamera/ipa/core_ipa_interface.h>
 
 #include "af_base.h"
@@ -63,6 +64,21 @@ Af::Af()
  *   - shift1: right-shift applied to filter1 accumulation (u5).
  *              default: 8
  */
+
+namespace {
+
+/* Optional IPA controls */
+const ControlInfoMap::Map afControls{
+	{ &controls::AfMode, ControlInfo(controls::AfModeValues) },
+	{ &controls::AfRange, ControlInfo(controls::AfRangeValues) },
+	{ &controls::AfSpeed, ControlInfo(controls::AfSpeedValues) },
+	{ &controls::AfMetering, ControlInfo(controls::AfMeteringValues) },
+	{ &controls::AfWindows, ControlInfo(Rectangle{}, Rectangle(65535, 65535, 65535, 65535), Rectangle{}) },
+	{ &controls::AfTrigger, ControlInfo(controls::AfTriggerValues) },
+	{ &controls::AfPause, ControlInfo(controls::AfPauseValues) },
+};
+
+} /* namespace */
 
 /**
  * \copydoc libcamera::ipa::Algorithm::init
@@ -122,6 +138,15 @@ int Af::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
 	ss << "shift0: " << +shifts_[0] << " shift1: " << +shifts_[1];
 	LOG(NxpNeoAlgoAf, Debug) << ss.str();
 
+	/* Create user controls. */
+	context.ctrlMap.insert(afControls.begin(), afControls.end());
+
+	double min, max;
+	algo_->getLensLimits(min, max);
+	float def = static_cast<float>(algo_->getDefaultLensPosition());
+	context.ctrlMap[&controls::LensPosition] =
+		ControlInfo(static_cast<float>(min), static_cast<float>(max), def);
+
 	return ret;
 }
 
@@ -130,16 +155,8 @@ int Af::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
  */
 int Af::configure([[maybe_unused]] IPAContext &context, const IPACameraSensorInfo &configInfo)
 {
-	/* Store lens position range in the context. */
-	auto &afConfig = context.configuration.af;
-	double min, max;
-	algo_->getLensLimits(min, max);
-	afConfig.minLensPosition = static_cast<float>(min);
-	afConfig.maxLensPosition = static_cast<float>(max);
-	double def = algo_->getDefaultLensPosition();
-	afConfig.defLensPosition = static_cast<float>(def);
-
 	/* Camera mode related values. */
+	auto &afConfig = context.configuration.af;
 	const Rectangle &analogCrop = configInfo.analogCrop;
 	afConfig.cropX = analogCrop.x;
 	afConfig.cropY = analogCrop.y;
@@ -204,6 +221,7 @@ int Af::configure([[maybe_unused]] IPAContext &context, const IPACameraSensorInf
 	afState.mode = AfModeManual;
 	algo_->setMode(AfModeManual);
 	int32_t hwPosition;
+	double def = algo_->getDefaultLensPosition();
 	algo_->setLensPosition(def, &hwPosition);
 
 	int ret = algo_->doConfigure(configInfo);
