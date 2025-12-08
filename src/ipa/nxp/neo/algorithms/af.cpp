@@ -237,48 +237,40 @@ void Af::queueRequest([[maybe_unused]] IPAContext &context,
 {
 	auto &afFContext = frameContext.af;
 
-	const std::array<AfModeEnum, 3> modes{ AfModeManual, AfModeAuto, AfModeContinuous };
 	const auto &afMode = controls.get(controls::AfMode);
 	if (afMode) {
-		if (std::find(modes.begin(), modes.end(), *afMode) != modes.end()) {
-			AfModeEnum mode = static_cast<AfModeEnum>(*afMode);
-			afFContext.mode = mode;
-		} else {
+		if (std::find(AfModeValues.begin(), AfModeValues.end(),
+			      *afMode) != AfModeValues.end())
+			afFContext.mode = static_cast<AfModeEnum>(*afMode);
+		else
 			LOG(NxpNeoAlgoAf, Warning) << "Invalid AfMode: " << *afMode;
-		}
 	}
 
-	const std::array<AfRangeEnum, 3> ranges{ AfRangeNormal, AfRangeMacro, AfRangeFull };
 	const auto &afRange = controls.get(controls::AfRange);
 	if (afRange) {
-		if (std::find(ranges.begin(), ranges.end(), *afRange) != ranges.end()) {
-			AfRangeEnum range = static_cast<AfRangeEnum>(*afRange);
-			afFContext.range = range;
-		} else {
+		if (std::find(AfRangeValues.begin(), AfRangeValues.end(),
+			      *afRange) != AfRangeValues.end())
+			afFContext.range = static_cast<AfRangeEnum>(*afRange);
+		else
 			LOG(NxpNeoAlgoAf, Warning) << "Invalid AfRange: " << *afRange;
-		}
 	}
 
-	const std::array<AfSpeedEnum, 2> speeds{ AfSpeedNormal, AfSpeedFast };
 	const auto &afSpeed = controls.get(controls::AfSpeed);
 	if (afSpeed) {
-		if (std::find(speeds.begin(), speeds.end(), *afSpeed) != speeds.end()) {
-			AfSpeedEnum speed = static_cast<AfSpeedEnum>(*afSpeed);
-			afFContext.speed = speed;
-		} else {
+		if (std::find(AfSpeedValues.begin(), AfSpeedValues.end(),
+			      *afSpeed) != AfSpeedValues.end())
+			afFContext.speed = static_cast<AfSpeedEnum>(*afSpeed);
+		else
 			LOG(NxpNeoAlgoAf, Warning) << "Invalid AfSpeed: " << *afSpeed;
-		}
 	}
 
-	const std::array<AfMeteringEnum, 2> meterings{ AfMeteringAuto, AfMeteringWindows };
 	const auto &afMetering = controls.get(controls::AfMetering);
 	if (afMetering) {
-		if (std::find(meterings.begin(), meterings.end(), *afMetering) != meterings.end()) {
-			AfMeteringEnum metering = static_cast<AfMeteringEnum>(*afMetering);
-			afFContext.metering = metering;
-		} else {
+		if (std::find(AfMeteringValues.begin(), AfMeteringValues.end(),
+			      *afMetering) != AfMeteringValues.end())
+			afFContext.metering = static_cast<AfMeteringEnum>(*afMetering);
+		else
 			LOG(NxpNeoAlgoAf, Warning) << "Invalid AfMetering: " << *afMetering;
-		}
 	}
 
 	const auto &afWindows = controls.get(controls::AfWindows);
@@ -293,30 +285,24 @@ void Af::queueRequest([[maybe_unused]] IPAContext &context,
 				afConfig.scaleX, afConfig.scaleY);
 	}
 
-	const std::array<AfPauseEnum, 3> pauses{ AfPauseImmediate, AfPauseDeferred,
-						 AfPauseResume };
 	const auto &afPause = controls.get(controls::AfPause);
 	if (afPause) {
-		if (std::find(pauses.begin(), pauses.end(), *afPause) != pauses.end()) {
-			AfPauseEnum pauseValue = static_cast<AfPauseEnum>(*afPause);
-			afFContext.pause = pauseValue;
-		} else {
+		if (std::find(AfPauseValues.begin(), AfPauseValues.end(),
+			      *afPause) != AfPauseValues.end())
+			afFContext.pause = static_cast<AfPauseEnum>(*afPause);
+		else
 			LOG(NxpNeoAlgoAf, Warning) << "Invalid AfPause: " << *afPause;
-		}
 	}
 
-	const std::array<AfTriggerEnum, 2> triggers{ AfTriggerStart, AfTriggerCancel };
 	const auto &afTrigger = controls.get(controls::AfTrigger);
 	if (afTrigger) {
-		if (algo_->getMode() != AfModeAuto) {
+		if (algo_->getMode() != AfModeAuto)
 			LOG(NxpNeoAlgoAf, Warning) << "AfTrigger is restricted to Auto mode";
-		} else if (std::find(triggers.begin(), triggers.end(), *afTrigger) !=
-			   triggers.end()) {
-			AfTriggerEnum trigger = static_cast<AfTriggerEnum>(*afTrigger);
-			afFContext.trigger = trigger;
-		} else {
+		else if (std::find(AfTriggerValues.begin(), AfTriggerValues.end(),
+				   *afTrigger) != AfTriggerValues.end())
+			afFContext.trigger = static_cast<AfTriggerEnum>(*afTrigger);
+		else
 			LOG(NxpNeoAlgoAf, Warning) << "Invalid AfTrigger: " << *afTrigger;
-		}
 	}
 
 	const auto &afPosition = controls.get(controls::LensPosition);
