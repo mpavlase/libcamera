@@ -65,7 +65,9 @@ private:
 	RGB<double> gains_;
 	std::vector<std::tuple<uint32_t, uint32_t, uint32_t>> rgbTriples_;
 
-	static constexpr size_t kNumHist = 4;
+	static constexpr uint8_t kHistIrId = Hist0;
+	/* The Ir pixel is the 4th channel within 2x2 pattern RGGIr or BGGIr. */
+	static constexpr uint8_t kHistChannelIr = NEO_HIST_CHANNEL4;
 	static const RGB<uint8_t> kHistIds;
 	std::vector<uint32_t> histScale_;
 	bool userConfig_ = false;

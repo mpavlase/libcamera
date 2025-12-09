@@ -91,7 +91,7 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	if (!obj.size()) {
 		LOG(NxpNeoAlgoAgc, Debug) << "Use default histogram scaling value: "
 					  << HIST_SCALE_DEFAULT;
-		for (unsigned int i = 0; i < kNumHist; ++i) {
+		for (unsigned int i = 0; i < NEO_STAT_HIST_CNT; ++i) {
 			histScale_.push_back(HIST_SCALE_DEFAULT);
 		}
 		return 0;
@@ -99,9 +99,9 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 
 	histScale_ = obj.getList<uint32_t>()
 			     .value_or(std::vector<uint32_t>{});
-	if (histScale_.size() != kNumHist) {
+	if (histScale_.size() != NEO_STAT_HIST_CNT) {
 		LOG(NxpNeoAlgoAgc, Error)
-			<< "histScale_ list size must be " << kNumHist;
+			<< "histScale_ list size must be " << NEO_STAT_HIST_CNT;
 		return -EINVAL;
 	}
 
@@ -221,21 +221,20 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 	if (frame > 0)
 		return;
 
-	auto config = params->block<BlockParamsType::Stat>();
-	config.setUpdate(true);
+	auto statConfig = params->block<BlockParamsType::Stat>();
+	statConfig.setUpdate(true);
 
-	/* Configure histograms */
 	/* Foreground ROI disabled (> Image geometry means invalid ROI) */
-	config->roi0.xpos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
-	config->roi0.ypos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
-	config->roi0.width = HIST_ROI_INVALID_IMAGE_GEOMETRY;
-	config->roi0.height = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	statConfig->roi0.xpos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	statConfig->roi0.ypos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	statConfig->roi0.width = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	statConfig->roi0.height = HIST_ROI_INVALID_IMAGE_GEOMETRY;
 	/* Background ROI: set to full image */
-	config->roi1 = context.configuration.agc.roi;
+	statConfig->roi1 = context.configuration.agc.roi;
 
-	/* Histogram control */
+	/* STAT Histogram configuration */
 	/* HIST for Red */
-	neoisp_stat_hist_cfg_s *histRed = &config->hists[kHistIds.r()];
+	neoisp_stat_hist_cfg_s *histRed = &statConfig->hists[kHistIds.r()];
 	histRed->hist_ctrl_offset = 0;
 	histRed->hist_ctrl_channel = NEO_HIST_CHANNEL_R;
 	histRed->hist_ctrl_pattern = 0;
@@ -243,7 +242,7 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 	histRed->hist_ctrl_lin_input1_log = 0;
 	histRed->hist_scale_scale = histScale_[kHistIds.r()];
 	/* HIST for Gr+Gb */
-	neoisp_stat_hist_cfg_s *histGreen = &config->hists[kHistIds.g()];
+	neoisp_stat_hist_cfg_s *histGreen = &statConfig->hists[kHistIds.g()];
 	histGreen->hist_ctrl_offset = 0;
 	histGreen->hist_ctrl_channel = NEO_HIST_CHANNEL_GR | NEO_HIST_CHANNEL_GB;
 	histGreen->hist_ctrl_pattern = 0;
@@ -251,13 +250,32 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 	histGreen->hist_ctrl_lin_input1_log = 0;
 	histGreen->hist_scale_scale = histScale_[kHistIds.g()];
 	/* HIST for Blue */
-	neoisp_stat_hist_cfg_s *histBlue = &config->hists[kHistIds.b()];
+	neoisp_stat_hist_cfg_s *histBlue = &statConfig->hists[kHistIds.b()];
 	histBlue->hist_ctrl_offset = 0;
 	histBlue->hist_ctrl_channel = NEO_HIST_CHANNEL_B;
 	histBlue->hist_ctrl_pattern = 0;
 	histBlue->hist_ctrl_dir_input1_dif = 0;
 	histBlue->hist_ctrl_lin_input1_log = 0;
 	histBlue->hist_scale_scale = histScale_[kHistIds.b()];
+
+	/* RGBIR Histogram configuration */
+	auto rgbirConfig = params->block<BlockParamsType::RgbIr>();
+	rgbirConfig.setUpdate(true);
+
+	rgbirConfig->roi[0].xpos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	rgbirConfig->roi[0].ypos = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	rgbirConfig->roi[0].width = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	rgbirConfig->roi[0].height = HIST_ROI_INVALID_IMAGE_GEOMETRY;
+	/* Background ROI: set to full image */
+	rgbirConfig->roi[1] = context.configuration.agc.roi;
+
+	neoisp_stat_hist_cfg_s *histIr = &rgbirConfig->hists[kHistIrId];
+	histIr->hist_ctrl_offset = 0;
+	histIr->hist_ctrl_channel = kHistChannelIr;
+	histIr->hist_ctrl_pattern = 0;
+	histIr->hist_ctrl_dir_input1_dif = 0;
+	histIr->hist_ctrl_lin_input1_log = 0;
+	histIr->hist_scale_scale = HIST_SCALE_DEFAULT;
 }
 
 void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,

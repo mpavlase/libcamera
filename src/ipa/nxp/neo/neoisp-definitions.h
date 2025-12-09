@@ -84,6 +84,21 @@ enum neoisp_hist_ctrl_channel {
 };
 
 /**
+ * enum neoisp_hist_rgbir_channel - RGBIr channels format.
+ *
+ * @NEO_HIST_CHANNEL1: 1st channel of a 2x2 window of input image
+ * @NEO_HIST_CHANNEL2: 2nd channel of a 2x2 window of input image
+ * @NEO_HIST_CHANNEL3: 3rd channel of a 2x2 window of input image
+ * @NEO_HIST_CHANNEL4: 4th channel of a 2x2 window of input image
+ */
+enum neoisp_hist_rgbir_channel {
+	NEO_HIST_CHANNEL1 = 0x1,
+	NEO_HIST_CHANNEL2 = 0x2,
+	NEO_HIST_CHANNEL3 = 0x4,
+	NEO_HIST_CHANNEL4 = 0x8,
+};
+
+/**
  * Statistics and Histogram (stat)
  */
 
