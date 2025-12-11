@@ -722,14 +722,13 @@ void IPANxpNeo::setControls(unsigned int frame, IPAContextType context)
 				   &ctrls);
 
 	/*
-	 * In RGBIr dual mode, the controls should be sent:
-	 * - for context Ir only
-	 * After processing the Ir context, the multi controls are updated
-	 * with both context of the frame.
+	 * In RGBIr dual mode, the controls should be sent for one context only:
+	 * - the RGB context should be used as long as the single-capture
+	 *   controls are used from the CameraHelper in RGBIr dual mode.
 	 */
 	if (context_.configuration.pipelineMode != IPAModeTypeRgbIrDual ||
 	    (context_.configuration.pipelineMode == IPAModeTypeRgbIrDual &&
-	     context == IPAContextTypeIr)) {
+	     context == IPAContextTypeRgb)) {
 		setSensorControls.emit(frame, ctrls);
 	}
 }

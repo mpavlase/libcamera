@@ -92,11 +92,14 @@ void CameraHelperOx05b1s::controlListSetAGC(
 	ControlList *ctrls, SensorContextTypes context,
 	Duration exposure, double gain)
 {
-	/* In non Dual Context mode, the standard single-capture controls are used. */
-	if (mode_.streamMode != SensorStreamDualContext)
+	/* For now, the standard single-capture controls are used for all stream modes. */
+	if (mode_.streamMode <= SensorStreamDualContext)
 		return CameraHelper::controlListSetAGC(ctrls, context, exposure, gain);
 
-	/* In Dual Context mode, the multi-capture controls are used. */
+	/*
+	 * The multi-capture controls will be enabled in RGBIr dual mode when
+	 * the sensor driver will have proper context switch operation.
+	 */
 	unsigned int indexMulti = 0;
 	if (context == SensorContextIr)
 		indexMulti = 1;
