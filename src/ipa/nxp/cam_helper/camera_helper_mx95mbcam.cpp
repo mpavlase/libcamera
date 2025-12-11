@@ -232,7 +232,7 @@ private:
 	static constexpr float kMaxAnalogGainLong = 15.0f;
 	static constexpr float kMinAnalogGainShort = 1.0f;
 	static constexpr float kMaxAnalogGainShort = 15.0f;
-	static constexpr float kMinAnalogGainSpd = 1.0f;
+	static constexpr float kMinAnalogGainSpd = 4.5f;
 	static constexpr float kMaxAnalogGainSpd = 15.0f;
 	static constexpr float kMinAnalogGainVs = 1.0f;
 	static constexpr float kMaxAnalogGainVs = 15.0f;
