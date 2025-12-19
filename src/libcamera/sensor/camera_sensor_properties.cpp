@@ -81,7 +81,7 @@ LOG_DEFINE_CATEGORY(CameraSensorProperties)
 const CameraSensorProperties *CameraSensorProperties::get(const std::string &sensor)
 {
 	static const std::map<std::string, const CameraSensorProperties> sensorProps = {
-		{ "ap130x", {
+		{ "ap1302", {
 			/* Camera module based on AR0144 with AP1302 ISP */
 			.unitCellSize = { 3000, 3000 },
 			.testPatternModes = { },
