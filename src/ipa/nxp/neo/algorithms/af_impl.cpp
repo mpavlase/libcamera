@@ -899,7 +899,7 @@ void AfImpl::setWindows(libcamera::Span<libcamera::Rectangle const> const &wins)
 
 double AfImpl::getDefaultLensPosition() const
 {
-	return cfg_.ranges[AfRangeNormal].focusDefault;
+	return cfg_.ranges.at(AfRangeNormal).focusDefault;
 }
 
 void AfImpl::getLensLimits(double &min, double &max) const

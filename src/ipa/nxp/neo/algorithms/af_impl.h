@@ -4,7 +4,7 @@
  *
  * Autofocus control algorithm
  *
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  *
  * Adapted from the files:
  * - src/ipa/rpi/controller/rpi/af.h
@@ -119,14 +119,9 @@ private:
 		void read(const YamlObject &params);
 	};
 
-	/* \todo remove enum max definition by replacing the arrays by maps. */
-	static constexpr unsigned kAfRangeMax =
-		controls::AfRangeEnum::AfRangeFull + 1;
-	static constexpr unsigned kAfSpeedMax =
-		controls::AfSpeedEnum::AfSpeedFast + 1;
 	struct CfgParams {
-		RangeDependentParams ranges[kAfRangeMax];
-		SpeedDependentParams speeds[kAfSpeedMax];
+		std::map<controls::AfRangeEnum, RangeDependentParams> ranges;
+		std::map<controls::AfSpeedEnum, SpeedDependentParams> speeds;
 		uint32_t confEpsilon; /* PDAF hysteresis threshold (sensor-specific) */
 		uint32_t confThresh; /* PDAF confidence cell min (sensor-specific) */
 		uint32_t confClip; /* PDAF confidence cell max (sensor-specific) */
