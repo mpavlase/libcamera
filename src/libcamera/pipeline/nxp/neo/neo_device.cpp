@@ -4,7 +4,7 @@
  *     src/libcamera/pipeline/ipu3/imgu.cpp
  * Copyright (C) 2019, Google Inc.
  *
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  * neo_device.cpp - NXP NEO
  */
 
@@ -193,8 +193,19 @@ int NeoDevice::allocateBuffers(unsigned int bufferCount)
 		}
 	}
 
-	/* Params/stats buffers allocated internally */
-	ret = params_->allocateBuffers(bufferCount, &paramsBuffers_);
+	/*
+	 * Params/stats buffers are allocated here to be used as internal
+	 * buffers. We use exportBuffers() and importBuffers() to orphan the
+	 * exported buffers and operate the queue with the V4L2 DMABUF memory
+	 * type. Conversely, using allocateBuffer() would export buffers bound
+	 * to the queue operated with the V4L2 MMAP memory type. That way the
+	 * meta buffers exported can be used by any ISP instances for instance
+	 * during RGBIr dual context mode of operation.
+	 */
+	int res;
+	res = params_->exportBuffers(bufferCount, &paramsBuffers_);
+	ret = res > 0 && static_cast<unsigned int>(res) == bufferCount ? 0 : -ENOMEM;
+	ret |= params_->importBuffers(bufferCount);
 	if (ret < 0) {
 		LOG(NxpNeoDev, Error)
 			<< logPrefix()
@@ -202,7 +213,9 @@ int NeoDevice::allocateBuffers(unsigned int bufferCount)
 		goto error;
 	}
 
-	ret = stats_->allocateBuffers(bufferCount, &statsBuffers_);
+	res = stats_->exportBuffers(bufferCount, &statsBuffers_);
+	ret = res > 0 && static_cast<unsigned int>(res) == bufferCount ? 0 : -ENOMEM;
+	ret |= stats_->importBuffers(bufferCount);
 	if (ret < 0) {
 		LOG(NxpNeoDev, Error)
 			<< logPrefix()
