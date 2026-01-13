@@ -68,7 +68,6 @@ const RGB<uint8_t> AgcStatsRgb::kHistIds{ { HistId0, HistId1, HistId2 } };
 
 Agc::Agc()
 {
-	supportsIr_ = true;
 	agcs_[IPAContextTypeRgb] = std::make_unique<AgcStatsRgb>();
 	agcs_[IPAContextTypeIr] = std::make_unique<AgcStatsIr>();
 }
