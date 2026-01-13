@@ -81,8 +81,6 @@ protected:
 	std::string logPrefix() const override;
 
 private:
-	static bool isAlgoDisabled(const IPAContextType context,
-				   Algorithm *algo);
 	void updateSensorConfig(const IPACameraSensorInfo &sensorInfo,
 				const ControlInfoMap &sensorControls);
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
@@ -419,12 +417,8 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 	NxpNeoParams params(context_.hw.apiVersion,
 			    mappedBuffers_.at(paramsBufferId).planes()[0]);
 
-	for (auto const &a : algorithms()) {
-		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (isAlgoDisabled(context, algo))
-			continue;
+	for (auto const &algo : algorithms())
 		algo->prepare(context_, frame, frameContext, &params);
-	}
 
 	paramsComputed.emit(frame, context, params.size());
 
@@ -464,24 +458,13 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 	ControlList metadata(controls::controls);
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (isAlgoDisabled(context, algo))
+		if (algo->disabled_)
 			continue;
 		algo->process(context_, frame, frameContext, &stats, metadata);
 	}
 
 	setControls(frame, context);
 	metadataReady.emit(frame, context, metadata);
-}
-
-bool IPANxpNeo::isAlgoDisabled(const IPAContextType context, Algorithm *algo)
-{
-	/*
-	 * Algorithm is disabled if:
-	 * - the flag disabled is true
-	 * - or Ir is not supported while in Ir context.
-	 */
-	return algo->disabled_ ||
-	       (!algo->supportsIr_ && context == IPAContextTypeIr);
 }
 
 void IPANxpNeo::updateSensorConfig(const IPACameraSensorInfo &sensorInfo,

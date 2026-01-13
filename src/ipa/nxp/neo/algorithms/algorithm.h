@@ -22,12 +22,11 @@ class Algorithm : public libcamera::ipa::Algorithm<Module>
 {
 public:
 	Algorithm()
-		: disabled_(false), supportsIr_(false)
+		: disabled_(false)
 	{
 	}
 
 	bool disabled_;
-	bool supportsIr_;
 };
 
 } /* namespace ipa::nxpneo */
