@@ -5,7 +5,7 @@
  * Copyright (C) 2021, Ideas On Board
  *
  * algorithm.h - NXP NEO control algorithm interface
- * Copyright 2024 NXP
+ * Copyright 2026 NXP
  */
 
 #pragma once
@@ -22,11 +22,8 @@ class Algorithm : public libcamera::ipa::Algorithm<Module>
 {
 public:
 	Algorithm()
-		: disabled_(false)
 	{
 	}
-
-	bool disabled_;
 };
 
 } /* namespace ipa::nxpneo */
