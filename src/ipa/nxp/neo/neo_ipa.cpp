@@ -408,8 +408,12 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 	NxpNeoParams params(context_.hw.apiVersion,
 			    mappedBuffers_.at(paramsBufferId).planes()[0]);
 
-	for (auto const &algo : algorithms())
+	for (auto const &a : algorithms()) {
+		Algorithm *algo = static_cast<Algorithm *>(a.get());
+		if (context == IPAContextTypeIr && !(algo->irOps() & IrOpPrepare))
+			continue;
 		algo->prepare(context_, frame, frameContext, &params);
+	}
 
 	paramsComputed.emit(frame, context, params.size());
 
@@ -447,8 +451,12 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 	updateFrameContextSensorMeta(frame, context);
 
 	ControlList metadata(controls::controls);
-	for (auto const &algo : algorithms())
+	for (auto const &a : algorithms()) {
+		Algorithm *algo = static_cast<Algorithm *>(a.get());
+		if (context == IPAContextTypeIr && !(algo->irOps() & IrOpProcess))
+			continue;
 		algo->process(context_, frame, frameContext, &stats, metadata);
+	}
 
 	setControls(frame, context);
 	metadataReady.emit(frame, context, metadata);
