@@ -4,8 +4,6 @@
  * Copyright 2026 NXP
  */
 
-#pragma once
-
 #include <libipa/algorithm.h>
 
 #include "module.h"
