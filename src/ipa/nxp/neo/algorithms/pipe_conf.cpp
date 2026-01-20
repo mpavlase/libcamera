@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * pipe_conf.cpp - NXP NEO PIPE_CONF configuration
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #include "pipe_conf.h"
@@ -135,6 +135,7 @@ PipeConf::PipeConf()
 	: inAlign0_(0), lpAlign0_(kLpAlignDefault),
 	  inAlign1_(0), lpAlign1_(kLpAlignDefault)
 {
+	setIrOps(IrOpPrepare);
 }
 
 /**

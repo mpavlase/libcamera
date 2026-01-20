@@ -9,7 +9,7 @@
  * Copyright (C) 2021, Ideas On Board
  *
  * agc.cpp - AGC/AEC mean-based control algorithm
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  */
 
 #include "agc.h"
@@ -68,9 +68,10 @@ const RGB<uint8_t> AgcStatsRgb::kHistIds{ { HistId0, HistId1, HistId2 } };
 
 Agc::Agc()
 {
-	supportsIr_ = true;
 	agcs_[IPAContextTypeRgb] = std::make_unique<AgcStatsRgb>();
 	agcs_[IPAContextTypeIr] = std::make_unique<AgcStatsIr>();
+
+	setIrOps(IrOpAll);
 }
 
 /**
@@ -187,19 +188,10 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 		agcFrameContext.gain = agcActiveState.gain;
 	}
 
-	if (frame > 0 || frameContext.contextType == IPAContextTypeIr)
+	if (frame > 0)
 		return;
 
-	/*
-	 * The IR histograms used by AGC are provided by the RGBIR ISP block
-	 * whose usage is shared with the RGBIR algorithm.
-	 * Thus, configure the IR histograms at the same time as RGBIR
-	 * algorithm configures the other parts of the RGBIR ISP block
-	 * so that they can be merged at driver level.
-	 * That is the frame 0, on the default context (RGB).
-	 */
-	for (const auto &[id, agc] : agcs_)
-		agc->setupHistograms(context, params);
+	agcs_[contextId]->setupHistograms(context, params);
 }
 
 void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,

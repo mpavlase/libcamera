@@ -4,7 +4,7 @@
  *
  * Autofocus control algorithm
  *
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  *
  * Adapted from the file src/ipa/rpi/controller/rpi/af.cpp
  * to be used as an implementation of an autofocus algorithm
@@ -856,14 +856,14 @@ void AfImpl::doProcess(const FocusRegions &focusRegions,
 void AfImpl::setRange(AfRangeEnum r)
 {
 	LOG(RPiAf, Debug) << "setRange: " << (unsigned)r;
-	if (r < kAfRangeMax)
+	if (static_cast<unsigned int>(r) < AfRangeValues.size())
 		range_ = r;
 }
 
 void AfImpl::setSpeed(AfSpeedEnum s)
 {
 	LOG(RPiAf, Debug) << "setSpeed: " << (unsigned)s;
-	if (s < kAfSpeedMax) {
+	if (static_cast<unsigned int>(s) < AfSpeedValues.size()) {
 		if (scanState_ == ScanState::Pdaf &&
 		    cfg_.speeds[s].pdafFrames > cfg_.speeds[speed_].pdafFrames)
 			stepCount_ += cfg_.speeds[s].pdafFrames - cfg_.speeds[speed_].pdafFrames;
@@ -899,7 +899,7 @@ void AfImpl::setWindows(libcamera::Span<libcamera::Rectangle const> const &wins)
 
 double AfImpl::getDefaultLensPosition() const
 {
-	return cfg_.ranges[AfRangeNormal].focusDefault;
+	return cfg_.ranges.at(AfRangeNormal).focusDefault;
 }
 
 void AfImpl::getLensLimits(double &min, double &max) const

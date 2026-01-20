@@ -5,7 +5,7 @@
  * Copyright (C) 2019, Google Inc.
  *
  * neo_ipa.cpp - NXP NEO Image Processing Algorithms
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  */
 
 #include <algorithm>
@@ -81,8 +81,6 @@ protected:
 	std::string logPrefix() const override;
 
 private:
-	static bool isAlgoDisabled(const IPAContextType context,
-				   Algorithm *algo);
 	void updateSensorConfig(const IPACameraSensorInfo &sensorInfo,
 				const ControlInfoMap &sensorControls);
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
@@ -286,12 +284,7 @@ int IPANxpNeo::configure(const IPAConfigInfo &ipaConfig,
 
 	context_.configuration.colorSpace = ipaConfig.colorSpace;
 
-	for (auto const &a : algorithms()) {
-		Algorithm *algo = static_cast<Algorithm *>(a.get());
-
-		if (algo->disabled_)
-			continue;
-
+	for (auto const &algo : algorithms()) {
 		int ret = algo->configure(context_, info);
 		if (ret)
 			return ret;
@@ -337,12 +330,8 @@ void IPANxpNeo::queueRequest(const uint32_t frame, const ControlList &controls)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame);
 
-	for (auto const &a : algorithms()) {
-		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (algo->disabled_)
-			continue;
+	for (auto const &algo : algorithms())
 		algo->queueRequest(context_, frame, frameContext, controls);
-	}
 }
 
 void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context,
@@ -421,7 +410,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (isAlgoDisabled(context, algo))
+		if (context == IPAContextTypeIr && !(algo->irOps() & IrOpPrepare))
 			continue;
 		algo->prepare(context_, frame, frameContext, &params);
 	}
@@ -464,24 +453,13 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 	ControlList metadata(controls::controls);
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (isAlgoDisabled(context, algo))
+		if (context == IPAContextTypeIr && !(algo->irOps() & IrOpProcess))
 			continue;
 		algo->process(context_, frame, frameContext, &stats, metadata);
 	}
 
 	setControls(frame, context);
 	metadataReady.emit(frame, context, metadata);
-}
-
-bool IPANxpNeo::isAlgoDisabled(const IPAContextType context, Algorithm *algo)
-{
-	/*
-	 * Algorithm is disabled if:
-	 * - the flag disabled is true
-	 * - or Ir is not supported while in Ir context.
-	 */
-	return algo->disabled_ ||
-	       (!algo->supportsIr_ && context == IPAContextTypeIr);
 }
 
 void IPANxpNeo::updateSensorConfig(const IPACameraSensorInfo &sensorInfo,
