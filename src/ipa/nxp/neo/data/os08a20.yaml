@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: CC0-1.0
+%YAML 1.1
+---
+version: 1
+algorithms:
+  - PipeConf:
+  - HdrDecomp:
+  - BlackLevelCorrection:
+      # Configured in sensor at 64
+      # Listed value is offset for a 12-bit camera pixel format, using libcamera
+      # representation for BLC offset that 16-bit signed: 64 * 2^(16 - 12)
+      reference-bitdepth: 12
+      R: 1024
+      Gr: 1024
+      Gb: 1024
+      B: 1024
+  - Awb:
+  - Ccm:
+      ccms: [
+          {
+              ct: 2630,
+              ccm:
+              [
+                  2.500, -2.207, 0.707,
+                  -0.281, 0.500, 0.781,
+                  -0.051, -2.383, 3.434,
+              ],
+              offsets: [ 0, 0, 0 ]
+          },
+          {
+              ct: 2901,
+              ccm:
+              [
+                  2.203, -1.547, 0.344,
+                  -0.277, 0.973, 0.305,
+                  0.066, -1.926, 2.859,
+              ],
+              offsets: [ 0, 0, 0 ]
+          },
+          {
+              ct: 4284,
+              ccm:
+              [
+                  2.090, -0.945, -0.145,
+                  -0.258, 1.340, -0.082,
+                  0.047, -1.281, 2.234,
+              ],
+              offsets: [ 0, 0, 0 ]
+          },
+          {
+              ct: 5446,
+              ccm:
+              [
+                  2.117, -1.023, -0.094,
+                  -0.188, 1.391, -0.203,
+                  0.074, -1.031, 1.957,
+              ],
+              offsets: [ 0, 0, 0 ]
+          },
+          {
+              ct: 6439,
+              ccm:
+              [
+                  2.121, -0.933, -0.188,
+                  -0.141, 1.414, -0.273,
+                  0.078, -0.977, 1.898,
+              ],
+              offsets: [ 0, 0, 0 ]
+          },
+      ]
+  - Drc:
+      # Restrict DRC operation to HDR merge mode only
+      restrict-mode: hdr-merge
+      # Global DRC control mode. Select among the following options:
+      # 0 - copy. Data is copied from input to output of the DRC block,
+      #     no dynamic range compression is done (default)
+      # 1 - pre-configured. LUT with 416 entries needs to be specified in this config file
+      #     under 'gbl-lut'. If not configured, falls back to mode 0.
+      # 2 - dynamic. LUT determined per frame according to input data.
+      gbl-mode: 2
+      # Global DRC alpha. Selects between histogram equalization (=0) and histogram stretching (=256)
+      gdrc-alpha: 128
+      # Global DRC gamma. Controls the strength of dynamic range compression with histogram stretching
+      gdrc-gamma: 180
+      # Global DRC fixed gamma. Controls the default compression curve which GDRC works with
+      fixed-gamma: 180
+  - GammaOutCorrection:
+  - HdrMerge:
+      # Note: The HDR merge ratio should be aligned with the ratio used from
+      #       CameraHelper::controlListSetAGC(), currently set to 16.
+      ratio-long2short: 16
+      # Auto mode enabled (default mode) using default blending window {65, 95}
+      # Manual HDR tuned parameters based on following input values:
+      # - input data format of the HDR merge block: 12 bits
+      # - HDR ratio: 16
+      # - black level at the input of the HDR merge: 0
+      # - low blending threshold: 65%
+      # - high blending threshold: 95%
+#      obpp: 3
+#      gain-bpp: [ 2, 3 ]
+#      gain-offset: [ 0, 0 ]
+#      gain-scale: [ 4097, 4097]
+#      gain-shift: [ 8, 4 ]
+#      luma-th0: 42598
+#      luma-scale: 3413
+#      luma-scale-shift: 18
+#      luma-scale-th-shift: 0
+#      downscale: [ 0, 0 ]
+#      upscale: [ 0, 0 ]
+#      postscale: 0
+  - Agc:
+...
