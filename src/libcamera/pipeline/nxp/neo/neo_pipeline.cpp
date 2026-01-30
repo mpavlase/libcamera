@@ -3056,8 +3056,8 @@ void NxpNeoCameraData::isiImage0BufferReady(FrameBuffer *buffer)
 
 	/* Record the sensor's timestamp in the request metadata. */
 	Request *request = info->request_;
-	request->metadata().set(controls::SensorTimestamp,
-				buffer->metadata().timestamp);
+	request->_d()->metadata().set(controls::SensorTimestamp,
+				      buffer->metadata().timestamp);
 
 	if (request->findBuffer(&streamRaw_) == buffer)
 		pipe()->completeBuffer(request, buffer);
@@ -3327,7 +3327,7 @@ void NxpNeoCameraData::ipaMetadataReady(unsigned int id,
 		return;
 
 	Request *request = info->request_;
-	request->metadata().merge(metadata);
+	request->_d()->metadata().merge(metadata);
 
 	auto it = info->contexts_.find(static_cast<ContextType>(context));
 	if (it == info->contexts_.end()) {
