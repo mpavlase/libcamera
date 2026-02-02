@@ -34,8 +34,8 @@ public:
 		unsigned int topLines;
 	};
 
-	NeoDevice(unsigned int index)
-		: index_(index) {}
+	NeoDevice() = default;
+	~NeoDevice() = default;
 
 	int init(MediaDevice *media);
 
@@ -76,7 +76,7 @@ public:
 
 	std::string logPrefix() const
 	{
-		return "Neo[" + std::to_string(index_) + "] ";
+		return "Neo[" + isp_->deviceNode() + "] ";
 	}
 
 	const std::vector<PixelFormat> &framePixelFormats();
@@ -122,7 +122,6 @@ private:
 	bool padActiveFrame() const { return configFrame_; }
 	bool padActiveIr() const { return configIr_; }
 
-	unsigned int index_;
 	MediaDevice *media_ = nullptr;
 
 	bool configInput1_ = false;

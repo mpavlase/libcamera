@@ -1913,13 +1913,8 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 				media = pipe()->acquireMediaDevice(enumerator, isp);
 				if (!media)
 					return -ENODEV;
-				std::regex re("(\\d+)$");
-				std::smatch match;
-				if (!std::regex_search(media->deviceNode(), match, re))
-					return -EINVAL;
-				unsigned instance = std::stoul(match.str(1));
 				std::unique_ptr<NeoDevice> &neo = neoDevices_[context];
-				neo = std::make_unique<NeoDevice>(instance);
+				neo = std::make_unique<NeoDevice>();
 				return neo->init(media.get());
 			};
 
