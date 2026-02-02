@@ -1816,10 +1816,9 @@ void NxpNeoCameraData::stopDevice()
 	 * requests left that are pending on a IPA operation completion event.
 	 * Cancel them now to clean up the pipeline state.
 	 */
-	std::list<Request *> requests(queuedRequests_);
-	for (Request *request : requests) {
-		if (request->status() == Request::RequestCancelled)
-			continue;
+	while (!queuedRequests_.empty()) {
+		Request *request = queuedRequests_.front();
+		queuedRequests_.pop_front();
 		NxpNeoFrames::Info *frameInfo = frameInfos_.find(request);
 		ASSERT(frameInfo);
 		cancelCompleteRequest(frameInfo);
