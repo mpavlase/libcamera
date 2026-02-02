@@ -1,15 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * Pipeline handler for Neo ISP
+ *
  * Based on Pipeline handler for Intel IPU3
  *     src/libcamera/pipeline/ipu3/ipu3.cpp
  * Copyright (C) 2019, Google Inc.
- *
- * and on Pipeline handler for ISI interface
- *     src/libcamera/pipeline/imx8-isi/ims8-isi.cpp
- * Copyright (C) 2022 - Jacopo Mondi <jacopo@jmondi.org>
- *
- * neo_pipeline.cpp - Pipeline handler for NXP NEO ISP
- * Copyright 2024-2026 NXP
  */
 
 #include <algorithm>
