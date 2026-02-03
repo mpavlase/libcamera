@@ -44,6 +44,29 @@ namespace libcamera {
 LOG_DEFINE_CATEGORY(NxpNeoDev)
 
 /**
+ * \enum NeoDevice::VideoDevice
+ * \brief The video devices exposed by the ISP instance
+ *
+ * \var NeoDevice::VideoDevice::Input0
+ * \brief The input0 video device output node (long/main exposure)
+ *
+ * \var NeoDevice::VideoDevice::Input1
+ * \brief The input1 video device output node (short exposure for HDR)
+ *
+ * \var NeoDevice::VideoDevice::Params
+ * \brief The params video device output node (ISP parameters)
+ *
+ * \var NeoDevice::VideoDevice::Frame
+ * \brief The frame video device capture node (Rgb/Yuv output pixels)
+ *
+ * \var NeoDevice::VideoDevice::Ir
+ * \brief The Infrared video device capture node (Infared output pixels)
+ *
+ * \var NeoDevice::VideoDevice::Stats
+ * \brief The stats video device output node (ISP statistics)
+ */
+
+/**
  * \brief Initialize components of the NEO instance
  * \param[in] media The NEO instance media device
  *
@@ -64,7 +87,7 @@ int NeoDevice::init(MediaDevice *media)
 	 * Presence of the media device has been verified by the match()
 	 * function. There is no more need to check for devices availability.
 	 */
-	isp_ = V4L2Subdevice::fromEntityName(media, kSDevNeoEntityName());
+	isp_ = V4L2Subdevice::fromEntityName(media, subdeviceName());
 	ret = isp_->open();
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO";
@@ -112,42 +135,42 @@ int NeoDevice::init(MediaDevice *media)
 		hwCapabilities_ = NEO_CAP_ALIGNMENT_MSB;
 	}
 
-	input0_ = V4L2VideoDevice::fromEntityName(media, kVDevInput0EntityName());
+	input0_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Input0));
 	ret = input0_->open();
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO input0";
 		return ret;
 	}
 
-	input1_ = V4L2VideoDevice::fromEntityName(media, kVDevInput1EntityName());
+	input1_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Input1));
 	ret = input1_->open();
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO input1";
 		return ret;
 	}
 
-	params_ = V4L2VideoDevice::fromEntityName(media, kVDevEntityParamsName());
+	params_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Params));
 	ret = params_->open();
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO params";
 		return ret;
 	}
 
-	frame_ = V4L2VideoDevice::fromEntityName(media, kVDevEntityFrameName());
+	frame_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Frame));
 	ret = frame_->open();
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO frame";
 		return ret;
 	}
 
-	ir_ = V4L2VideoDevice::fromEntityName(media, kVDevEntityIrName());
+	ir_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Ir));
 	ret = ir_->open();
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO ir";
 		return ret;
 	}
 
-	stats_ = V4L2VideoDevice::fromEntityName(media, kVDevEntityStatsName());
+	stats_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Stats));
 	ret = stats_->open();
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO stats";
@@ -465,29 +488,87 @@ int NeoDevice::enableLinks(bool input1, bool frame, bool ir,
 {
 	int ret = 0;
 
-	ret = linkSetup(kVDevInput1EntityName(), 0,
-			kSDevNeoEntityName(), PAD_INPUT1, input1);
+	ret = linkSetup(videoDeviceName(VideoDevice::Input1), 0,
+			subdeviceName(), PAD_INPUT1, input1);
 	if (ret)
 		return ret;
 
-	ret = linkSetup(kSDevNeoEntityName(), PAD_FRAME,
-			kVDevEntityFrameName(), 0, frame);
+	ret = linkSetup(subdeviceName(), PAD_FRAME,
+			videoDeviceName(VideoDevice::Frame), 0, frame);
 	if (ret)
 		return ret;
 
-	ret = linkSetup(kSDevNeoEntityName(), PAD_IR,
-			kVDevEntityIrName(), 0, ir);
+	ret = linkSetup(subdeviceName(), PAD_IR,
+			videoDeviceName(VideoDevice::Ir), 0, ir);
 	if (ret)
 		return ret;
 
-	ret = linkSetup(kVDevEntityParamsName(), 0,
-			kSDevNeoEntityName(), PAD_PARAMS, params);
+	ret = linkSetup(videoDeviceName(VideoDevice::Params), 0,
+			subdeviceName(), PAD_PARAMS, params);
 	if (ret)
 		return ret;
 
-	ret = linkSetup(kSDevNeoEntityName(), PAD_STATS,
-			kVDevEntityStatsName(), 0, stats);
+	ret = linkSetup(subdeviceName(), PAD_STATS,
+			videoDeviceName(VideoDevice::Stats), 0, stats);
 	return ret;
+}
+
+/**
+ * \brief Get the driver name for the Neo ISP
+ *
+ * This function returns the Linux kernel driver name for the Neo ISP device.
+ * The driver name is used for device matching and enumeration in the media
+ * device framework.
+ *
+ * \return The Neo ISP driver name string
+ */
+const std::string &NeoDevice::driverName()
+{
+	static const std::string driverName = "neoisp";
+	return driverName;
+}
+
+/**
+ * \brief Get the subdevice entity name for the Neo ISP
+ *
+ * This function returns the media entity name for the Neo ISP subdevice.
+ *
+ * \return The Neo ISP subdevice entity name string
+ */
+const std::string &NeoDevice::subdeviceName()
+{
+	static const std::string entityName = "neoisp";
+	return entityName;
+}
+
+/**
+ * \brief Get the entity name for a Neo video device
+ * \param[in] device The video device identifier
+ *
+ * This function returns the media entity name associated with the specified
+ * Neo video device.
+ *
+ * \return The entity name string for valid devices, or an empty string for
+ * invalid device identifiers
+ */
+const std::string &NeoDevice::videoDeviceName(VideoDevice device)
+{
+	static const std::map<VideoDevice, std::string> deviceNames = {
+		{ VideoDevice::Input0, "neoisp-input0" },
+		{ VideoDevice::Input1, "neoisp-input1" },
+		{ VideoDevice::Params, "neoisp-params" },
+		{ VideoDevice::Frame, "neoisp-frame" },
+		{ VideoDevice::Ir, "neoisp-ir" },
+		{ VideoDevice::Stats, "neoisp-stats" },
+	};
+	static const std::string empty = "";
+
+	auto it = deviceNames.find(device);
+	if (it != deviceNames.end())
+		return it->second;
+
+	LOG(NxpNeoDev, Error) << "Invalid device " << static_cast<int>(device);
+	return empty;
 }
 
 /**

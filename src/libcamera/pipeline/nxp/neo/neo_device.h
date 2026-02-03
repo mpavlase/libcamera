@@ -34,6 +34,15 @@ public:
 		unsigned int topLines;
 	};
 
+	enum class VideoDevice {
+		Input0,
+		Input1,
+		Params,
+		Frame,
+		Ir,
+		Stats,
+	};
+
 	NeoDevice() = default;
 	~NeoDevice() = default;
 
@@ -54,6 +63,10 @@ public:
 	int enableLinks(bool input1, bool frame, bool ir,
 			bool params, bool stats);
 
+	static const std::string &driverName();
+	static const std::string &subdeviceName();
+	static const std::string &videoDeviceName(VideoDevice device);
+
 	std::unique_ptr<V4L2Subdevice> isp_;
 	std::unique_ptr<V4L2VideoDevice> input0_;
 	std::unique_ptr<V4L2VideoDevice> input1_;
@@ -64,15 +77,6 @@ public:
 
 	std::vector<std::unique_ptr<FrameBuffer>> paramsBuffers_;
 	std::vector<std::unique_ptr<FrameBuffer>> statsBuffers_;
-
-	static std::string kDriverName() { return "neoisp"; }
-	static std::string kSDevNeoEntityName() { return "neoisp"; }
-	static std::string kVDevInput0EntityName() { return "neoisp-input0"; }
-	static std::string kVDevInput1EntityName() { return "neoisp-input1"; }
-	static std::string kVDevEntityParamsName() { return "neoisp-params"; }
-	static std::string kVDevEntityFrameName() { return "neoisp-frame"; }
-	static std::string kVDevEntityIrName() { return "neoisp-ir"; }
-	static std::string kVDevEntityStatsName() { return "neoisp-stats"; }
 
 	std::string logPrefix() const
 	{

@@ -1898,19 +1898,19 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 		 * the second context ISP reservation is deferred until after
 		 * IPA initialization.
 		 */
-		DeviceMatch isp(NeoDevice::kDriverName());
-		isp.add(NeoDevice::kSDevNeoEntityName());
-		isp.add(NeoDevice::kVDevInput0EntityName());
-		isp.add(NeoDevice::kVDevInput1EntityName());
-		isp.add(NeoDevice::kVDevEntityParamsName());
-		isp.add(NeoDevice::kVDevEntityFrameName());
-		isp.add(NeoDevice::kVDevEntityIrName());
-		isp.add(NeoDevice::kVDevEntityStatsName());
+		DeviceMatch dm(NeoDevice::driverName());
+		dm.add(NeoDevice::subdeviceName());
+		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Input0));
+		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Input1));
+		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Params));
+		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Frame));
+		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Ir));
+		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Stats));
 
 		auto initNeoDevice =
-			[this, enumerator, &isp](ContextType context) {
+			[this, enumerator, &dm](ContextType context) {
 				std::shared_ptr<MediaDevice> &media = neoMedia_[context];
-				media = pipe()->acquireMediaDevice(enumerator, isp);
+				media = pipe()->acquireMediaDevice(enumerator, dm);
 				if (!media)
 					return -ENODEV;
 				std::unique_ptr<NeoDevice> &neo = neoDevices_[context];
