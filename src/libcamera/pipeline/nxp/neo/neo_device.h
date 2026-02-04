@@ -51,18 +51,13 @@ public:
 	int allocateBuffers(unsigned int bufferCount);
 	void freeBuffers();
 
-	int configure(PipeConfig &pipeConfig,
-		      V4L2DeviceFormat *formatInput0,
-		      V4L2DeviceFormat *formatInput1,
-		      V4L2DeviceFormat *formatFrame,
-		      V4L2DeviceFormat *formatIr);
+	int configure(const PipeConfig &pipeConfig,
+		      const std::map<VideoDevice, V4L2DeviceFormat *> &formats);
 
 	int start();
 	int stop();
 
-	int enableLinks(bool input1, bool frame, bool ir,
-			bool params, bool stats);
-
+	V4L2VideoDevice *videoDevice(VideoDevice device) const;
 	static const std::string &driverName();
 	static const std::string &subdeviceName();
 	static const std::string &videoDeviceName(VideoDevice device);
@@ -104,33 +99,19 @@ public:
 	}
 
 private:
-	enum {
-		PAD_INPUT0 = 0,
-		PAD_INPUT1 = 1,
-		PAD_PARAMS = 2,
-		PAD_FRAME = 3,
-		PAD_IR = 4,
-		PAD_STATS = 5,
-	};
+	int configureVideoDeviceLink(VideoDevice device, bool enable);
+	int configureVideoDevice(VideoDevice device, V4L2DeviceFormat *format);
+	int configureVideoDeviceMeta(VideoDevice device, unsigned int apiVersion);
 
-	int linkSetup(const std::string &source, unsigned int sourcePad,
-		      const std::string &sink, unsigned int sinkPad,
-		      bool enable);
-	int configureVideoDevice(V4L2VideoDevice *dev, unsigned int pad,
-				 V4L2DeviceFormat *format);
-	int configureVideoDeviceMeta(V4L2VideoDevice *dev,
-				     unsigned int pad, uint32_t fourcc,
-				     unsigned int size);
-
-	bool padActiveInput1() const { return configInput1_; }
-	bool padActiveFrame() const { return configFrame_; }
-	bool padActiveIr() const { return configIr_; }
+	bool padActive(VideoDevice device) const;
+	bool padActiveInput1() const { return padActive(VideoDevice::Input1); }
+	bool padActiveFrame() const { return padActive(VideoDevice::Frame); }
+	bool padActiveIr() const { return padActive(VideoDevice::Ir); }
 
 	MediaDevice *media_ = nullptr;
+	std::map<VideoDevice, std::unique_ptr<V4L2VideoDevice> *> videos_;
+	std::vector<VideoDevice> configured_;
 
-	bool configInput1_ = false;
-	bool configFrame_ = false;
-	bool configIr_ = false;
 	uint32_t hwCapabilities_ = 0;
 	uint32_t apiVersion_ = NEOISP_LEGACY_META_BUFFER;
 };

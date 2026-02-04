@@ -2575,20 +2575,26 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 
 	NeoDevice::PipeConfig pipeConfig = {};
 	pipeConfig.topLines = embeddedTopLines_;
+	std::map<NeoDevice::VideoDevice, V4L2DeviceFormat *> ispFormatsMap;
+	ispFormatsMap[NeoDevice::VideoDevice::Input0] = &devFormatInput0;
+	if (devFormatInput1.fourcc.isValid())
+		ispFormatsMap[NeoDevice::VideoDevice::Input1] = &devFormatInput1;
 	if (mode_ != ModeTypeRgbIrDual) {
-		ret = neoRgb->configure(pipeConfig,
-					&devFormatInput0, &devFormatInput1,
-					&devFormatFrame, &devFormatIr);
+		if (devFormatFrame.fourcc.isValid())
+			ispFormatsMap[NeoDevice::VideoDevice::Frame] = &devFormatFrame;
+		if (devFormatIr.fourcc.isValid())
+			ispFormatsMap[NeoDevice::VideoDevice::Ir] = &devFormatIr;
+		ret = neoRgb->configure(pipeConfig, ispFormatsMap);
 	} else {
-		V4L2DeviceFormat devFormatInvalid = {};
-		ret = neoRgb->configure(pipeConfig,
-					&devFormatInput0, &devFormatInput1,
-					&devFormatFrame, &devFormatInvalid);
+		if (devFormatFrame.fourcc.isValid())
+			ispFormatsMap[NeoDevice::VideoDevice::Frame] = &devFormatFrame;
+		ret = neoRgb->configure(pipeConfig, ispFormatsMap);
 
+		ispFormatsMap.erase(NeoDevice::VideoDevice::Frame);
+		if (devFormatIr.fourcc.isValid())
+			ispFormatsMap[NeoDevice::VideoDevice::Ir] = &devFormatIr;
 		NeoDevice *neoIr = neoDevice(ContextTypeIr);
-		ret |= neoIr->configure(pipeConfig,
-					&devFormatInput0, &devFormatInput1,
-					&devFormatInvalid, &devFormatIr);
+		ret |= neoIr->configure(pipeConfig, ispFormatsMap);
 	}
 	if (ret)
 		return ret;

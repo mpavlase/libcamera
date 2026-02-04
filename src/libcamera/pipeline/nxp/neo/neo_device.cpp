@@ -66,29 +66,79 @@ LOG_DEFINE_CATEGORY(NxpNeoDev)
  * \brief The stats video device output node (ISP statistics)
  */
 
+namespace {
+
+/* Keep those definitions in sync with NeoDevice::VideoDevice enum class. */
+constexpr unsigned int kVideoDeviceCount = 6;
+constexpr std::array<NeoDevice::VideoDevice, kVideoDeviceCount>
+kAllVideoDevices{
+	NeoDevice::VideoDevice::Input0,
+	NeoDevice::VideoDevice::Input1,
+	NeoDevice::VideoDevice::Params,
+	NeoDevice::VideoDevice::Frame,
+	NeoDevice::VideoDevice::Ir,
+	NeoDevice::VideoDevice::Stats,
+};
+
+constexpr unsigned int kVideoDeviceMetaCount = 2;
+constexpr std::array<NeoDevice::VideoDevice, kVideoDeviceMetaCount>
+kMetaVideoDevices{
+	NeoDevice::VideoDevice::Params,
+	NeoDevice::VideoDevice::Stats,
+};
+
+constexpr unsigned int kVideoDeviceMutableCount = 5;
+constexpr std::array<NeoDevice::VideoDevice, kVideoDeviceMutableCount>
+kMutableVideoDevices = {
+	NeoDevice::VideoDevice::Input1,
+	NeoDevice::VideoDevice::Params,
+	NeoDevice::VideoDevice::Frame,
+	NeoDevice::VideoDevice::Ir,
+	NeoDevice::VideoDevice::Stats,
+};
+
+bool isDeviceValid(NeoDevice::VideoDevice device)
+{
+	return std::find(kAllVideoDevices.begin(),
+			 kAllVideoDevices.end(),
+			 device) != kAllVideoDevices.end();
+}
+
+bool isDeviceMeta(NeoDevice::VideoDevice device)
+{
+	return std::find(kMetaVideoDevices.begin(),
+			 kMetaVideoDevices.end(),
+			 device) != kMetaVideoDevices.end();
+}
+
+bool isDeviceMutable(NeoDevice::VideoDevice device)
+{
+	return std::find(kMutableVideoDevices.begin(),
+			 kMutableVideoDevices.end(),
+			 device) != kMutableVideoDevices.end();
+}
+
+} /* namespace */
+
 /**
- * \brief Initialize components of the NEO instance
- * \param[in] media The NEO instance media device
+ * \brief Initialize the NEO ISP device and its video devices
+ * \param[in] media The media device containing the NEO ISP entities
  *
- * Create and open the V4L2 devices and subdevices of the NEO instance.
- *
- * In case of errors the created V4L2VideoDevice and V4L2Subdevice instances
- * are destroyed at pipeline handler delete time.
+ * This function performs the complete initialization of the NEO ISP device by:
+ * - Opening the NEO ISP subdevice
+ * - Opening all associated video devices
+ * - Querying hardware and driver capabilities
  *
  * \return 0 on success or a negative error code otherwise
+ * \retval -ENODEV if the NEO ISP device cannot be found or opened
+ * \retval -EINVAL if the device uAPI version is not supported
  */
 int NeoDevice::init(MediaDevice *media)
 {
-	int ret;
-
 	media_ = media;
 
-	/*
-	 * Presence of the media device has been verified by the match()
-	 * function. There is no more need to check for devices availability.
-	 */
 	isp_ = V4L2Subdevice::fromEntityName(media, subdeviceName());
-	ret = isp_->open();
+	int ret = isp_.get() ? isp_->open() : -ENODEV;
 	if (ret) {
 		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO";
 		return ret;
@@ -98,7 +148,8 @@ int NeoDevice::init(MediaDevice *media)
 	 * Get uapi meta version from kernel, then select the most appropriate
 	 * version compatible with user space.
 	 */
-	const struct v4l2_query_ext_ctrl *ctlInfo = isp_->controlInfo(V4L2_CID_NEOISP_META_API_VERSION);
+	const struct v4l2_query_ext_ctrl *ctlInfo =
+		isp_->controlInfo(V4L2_CID_NEOISP_META_API_VERSION);
 	if (ctlInfo != nullptr) {
 		int maxVersionUser = NEOISP_META_BUFFER_VERSION_COUNT - 1;
 		int maxVersionKernel = static_cast<int>(ctlInfo->maximum);
@@ -106,7 +157,8 @@ int NeoDevice::init(MediaDevice *media)
 
 		if (minVersionKernel > maxVersionUser) {
 			LOG(NxpNeoDev, Error) << "Device uAPI version not supported";
-			return -EINVAL;
+			ret = -EINVAL;
+			goto done;
 		}
 
 		int apiVersion = std::min(maxVersionUser, maxVersionKernel);
@@ -116,7 +168,7 @@ int NeoDevice::init(MediaDevice *media)
 		ctrls.set(V4L2_CID_NEOISP_META_API_VERSION, apiVersion);
 		ret = isp_->setControls(&ctrls);
 		if (ret)
-			return ret;
+			goto done;
 
 		apiVersion_ = apiVersion;
 	}
@@ -129,55 +181,44 @@ int NeoDevice::init(MediaDevice *media)
 		const std::array<uint32_t, 1> cids = { V4L2_CID_NEOISP_QUERYCAP };
 		ControlList ctrls = isp_->getControls(cids);
 		if (!ctrls.empty())
-			hwCapabilities_ = ctrls.get(V4L2_CID_NEOISP_QUERYCAP).get<int32_t>();
+			hwCapabilities_ =
+				ctrls.get(V4L2_CID_NEOISP_QUERYCAP).get<int32_t>();
 	} else {
 		/* Fallback on MSB for backward compatibility */
 		hwCapabilities_ = NEO_CAP_ALIGNMENT_MSB;
 	}
 
-	input0_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Input0));
-	ret = input0_->open();
-	if (ret) {
-		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO input0";
-		return ret;
+	videos_ = {
+		{ VideoDevice::Input0, &input0_ },
+		{ VideoDevice::Input1, &input1_ },
+		{ VideoDevice::Params, &params_ },
+		{ VideoDevice::Frame, &frame_ },
+		{ VideoDevice::Ir, &ir_ },
+		{ VideoDevice::Stats, &stats_ },
+	};
+	ASSERT(videos_.size() == kVideoDeviceCount);
+
+	for (const auto [device, _video] : videos_) {
+		const std::string &name = videoDeviceName(device);
+		*_video = std::move(V4L2VideoDevice::fromEntityName(media, name));
+		V4L2VideoDevice *video = _video->get();
+		ret = video ? video->open() : -ENODEV;
+		if (ret) {
+			LOG(NxpNeoDev, Error)
+				<< logPrefix() << "Failed to open video device "
+				<< static_cast<int>(device);
+			break;
+		}
 	}
 
-	input1_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Input1));
-	ret = input1_->open();
+done:
 	if (ret) {
-		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO input1";
-		return ret;
+		isp_.release();
+		for (const auto [device, _video] : videos_)
+			_video->release();
 	}
 
-	params_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Params));
-	ret = params_->open();
-	if (ret) {
-		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO params";
-		return ret;
-	}
-
-	frame_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Frame));
-	ret = frame_->open();
-	if (ret) {
-		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO frame";
-		return ret;
-	}
-
-	ir_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Ir));
-	ret = ir_->open();
-	if (ret) {
-		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO ir";
-		return ret;
-	}
-
-	stats_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName(VideoDevice::Stats));
-	ret = stats_->open();
-	if (ret) {
-		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to open NEO stats";
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 /**
@@ -330,6 +371,117 @@ void NeoDevice::freeBuffers()
 }
 
 /**
+ * \brief Configure NEO video devices according to their formats
+ * \param[in] pipeConfig The ISP pipeline configuration
+ * \param[in] formats Map of video devices to their corresponding V4L2 format
+ *  configurations
+ *
+ * This function configures all NEO video devices based on the provided
+ * format map. It performs the following operations:
+ * - Validates that all required immutable devices have formats specified
+ * - Configures pixel video devices (input0, input1, frame, ir) with their
+ *   formats
+ * - Enables links for mutable devices that are being configured
+ * - Configures metadata video devices (params, stats) with appropriate API
+ *   version
+ * - Disables links for unconfigured mutable devices
+ * - Applies crop settings to input devices to remove embedded data lines
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int NeoDevice::configure(const PipeConfig &pipeConfig,
+			 const std::map<VideoDevice, V4L2DeviceFormat *> &formats)
+{
+	int ret;
+
+	/* Validate that all required immutable devices have formats. */
+	for (VideoDevice device : kAllVideoDevices) {
+		if (isDeviceMutable(device))
+			continue;
+		if (formats.find(device) == formats.end()) {
+			LOG(NxpNeoDev, Error)
+				<< logPrefix() << "Missing format for immutable device "
+				<< static_cast<int>(device);
+			return -EINVAL;
+		}
+	}
+
+	/* Configure pixel video devices. */
+	std::vector<VideoDevice> configured;
+	for (const auto [device, format] : formats) {
+		if (isDeviceMeta(device)) {
+			LOG(NxpNeoDev, Warning)
+				<< logPrefix() << "Ignoring metadata format device "
+				<< static_cast<int>(device);
+			continue;
+		}
+
+		if (isDeviceMutable(device)) {
+			ret = configureVideoDeviceLink(device, true);
+			if (ret)
+				return ret;
+		}
+		ret = configureVideoDevice(device, format);
+		if (ret)
+			return ret;
+
+		configured.push_back(device);
+	}
+
+	/* Configure metadata video devices - mutable and always enabled. */
+	for (VideoDevice device : kMetaVideoDevices) {
+		ret = configureVideoDeviceLink(device, true);
+		if (ret)
+			return ret;
+		ret = configureVideoDeviceMeta(device, apiVersion_);
+		if (ret)
+			return ret;
+
+		configured.push_back(device);
+	}
+
+	/* Disable the links for unconfigured mutable devices. */
+	for (VideoDevice device : kMutableVideoDevices) {
+		if (std::find(configured.begin(),
+			      configured.end(), device) == configured.end()) {
+			ret = configureVideoDeviceLink(device, false);
+			if (ret)
+				return ret;
+		}
+	}
+
+	/* Set crop on enabled input. */
+	auto setCropSelection =
+		[this](VideoDevice device, const V4L2DeviceFormat *format, int topLines) {
+			V4L2VideoDevice *video = videoDevice(device);
+			ASSERT(video);
+			Size sizeInput = format->size;
+			Rectangle rect{ 0, topLines, sizeInput.width,
+					sizeInput.height - topLines };
+			int res = video->setSelection(V4L2_SEL_TGT_CROP, &rect);
+			if (res)
+				LOG(NxpNeoDev, Error)
+					<< logPrefix() << "Failed to set crop selection device "
+					<< static_cast<int>(device);
+			return res;
+		};
+
+	for (auto device : { VideoDevice::Input0, VideoDevice::Input1 }) {
+		auto it = formats.find(device);
+		if (it != formats.end()) {
+			const auto &[dev, format] = *it;
+			ret = setCropSelection(device, format, pipeConfig.topLines);
+			if (ret)
+				return ret;
+		}
+	}
+
+	configured_ = std::move(configured);
+
+	return 0;
+}
+
+/**
  * \brief Start NEO video devices operation
  * \return 0 on success or a negative error code otherwise
  */
@@ -430,87 +582,21 @@ int NeoDevice::stop()
 }
 
 /**
- * \brief Enable or disable a single link on the NEO instance
+ * \brief Retrieve a specific Neo video device
+ * \param[in] device The video device identifier
  *
- * This function assumes that the media device associated with the NEO instance
- * is opened.
+ * This function returns a pointer to the V4L2VideoDevice corresponding to
+ * the specified device identifier. That is an alternative to accessing the
+ * a video device firectly through its pointer exposed in the public interface
+ * of the class.
  *
- * \return 0 on success or a negative error code otherwise
+ * \return Pointer to the requested V4L2VideoDevice
  */
-int NeoDevice::linkSetup(const std::string &source, unsigned int sourcePad,
-			 const std::string &sink, unsigned int sinkPad,
-			 bool enable)
+V4L2VideoDevice *NeoDevice::videoDevice(VideoDevice device) const
 {
-	int ret;
-
-	MediaLink *link = media_->link(source, sourcePad, sink, sinkPad);
-	if (!link) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to get link: '" << source << "':"
-			<< sourcePad << " -> '" << sink << "':" << sinkPad;
-		return -ENODEV;
-	}
-
-	ret = link->setEnabled(enable);
-	if (ret) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to enable/disable link (" << enable
-			<< ") : '" << source << "':"
-			<< sourcePad << " -> '" << sink << "':" << sinkPad;
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-/**
- * \brief Selectively enable or disable the media links of the NEO device
- * \param[in] input1 The input1 link state (true to enable)
- * \param[in] frame The frame link enablement state (true to enable)
- * \param[in] ir The Ir link enablement state (true to enable)
- * \param[in] params The params metadata link state (true to enable)
- * \param[in] stats The stats metadata link state (true to enable)
- *
- * Neo ISP media controller device has 4 video and 2 meta devices nodes:
- * - 2 video input (output) devices: input0, input1
- * - 2 video output (capture) devices: frame, ir
- * - 1 metadata input (output) device: params
- * - 1 metadata output (capture) device: stats
- * input0 video device link is immutable, other links are enabled or disabled
- * depending on the required ISP usage.
- *
- * \return 0 on success or a negative error code otherwise
- */
-int NeoDevice::enableLinks(bool input1, bool frame, bool ir,
-			   bool params, bool stats)
-{
-	int ret = 0;
-
-	ret = linkSetup(videoDeviceName(VideoDevice::Input1), 0,
-			subdeviceName(), PAD_INPUT1, input1);
-	if (ret)
-		return ret;
-
-	ret = linkSetup(subdeviceName(), PAD_FRAME,
-			videoDeviceName(VideoDevice::Frame), 0, frame);
-	if (ret)
-		return ret;
-
-	ret = linkSetup(subdeviceName(), PAD_IR,
-			videoDeviceName(VideoDevice::Ir), 0, ir);
-	if (ret)
-		return ret;
-
-	ret = linkSetup(videoDeviceName(VideoDevice::Params), 0,
-			subdeviceName(), PAD_PARAMS, params);
-	if (ret)
-		return ret;
-
-	ret = linkSetup(subdeviceName(), PAD_STATS,
-			videoDeviceName(VideoDevice::Stats), 0, stats);
-	return ret;
+	auto it = videos_.find(device);
+	ASSERT(it != videos_.end());
+	return it->second->get();
 }
 
 /**
@@ -569,178 +655,6 @@ const std::string &NeoDevice::videoDeviceName(VideoDevice device)
 
 	LOG(NxpNeoDev, Error) << "Invalid device " << static_cast<int>(device);
 	return empty;
-}
-
-/**
- * \brief Configure NEO video device \a dev with the given \a format
- * \param[in] dev video device
- * \param[in] pad NEO subdevice pad linked to the video node
- * \param[in] format video device format to be configured
- *
- * \return 0 on success or a negative error code otherwise
- */
-int NeoDevice::configureVideoDevice(V4L2VideoDevice *dev, unsigned int pad,
-				    V4L2DeviceFormat *format)
-{
-	int ret;
-
-	LOG(NxpNeoDev, Debug)
-		<< logPrefix()
-		<< "Configure video device (" << pad << ") format "
-		<< format->toString();
-
-	ret = dev->setFormat(format);
-	if (ret) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to set device pad format";
-		return ret;
-	}
-
-	return 0;
-}
-
-/**
- * \brief Configure NEO meta video device \a dev with the given \a fourcc
- * \param[in] dev video device
- * \param[in] pad NEO subdevice pad linked to the video node
- * \param[in] fourcc fourcc to be configured
- * \param[in] size the meta buffer size
- *
- * \return 0 on success or a negative error code otherwise
- */
-int NeoDevice::configureVideoDeviceMeta(V4L2VideoDevice *dev,
-					unsigned int pad, uint32_t fourcc,
-					unsigned int size)
-{
-	int ret;
-	V4L2DeviceFormat devFormat = {};
-
-	devFormat.fourcc = V4L2PixelFormat(fourcc);
-	devFormat.planes[0].size = size;
-	ret = dev->setFormat(&devFormat);
-	if (ret) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to set format for meta video device pad ("
-			<< pad << ")";
-		return ret;
-	}
-
-	if (devFormat.planes[0].size != size) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Meta buffer size mismatch got "
-			<< devFormat.planes[0].size << " expected " << size;
-		return -EINVAL;
-	}
-
-	LOG(NxpNeoDev, Debug)
-		<< logPrefix()
-		<< "Configured meta video device format (" << pad << ") "
-		<< devFormat;
-
-	return 0;
-}
-
-/**
- * \brief Configure NEO video devices according to their formats
- * \param[in] pipeConfig The ISP pipeline configuration
- * \param[in] formatInput0 INPUT0 video device format
- * \param[in] formatInput1 INPUT1 video device format
- * \param[in] formatFrame FRAME device node format
- * \param[in] formatIr IR video device format
- *
- * \return 0 on success or a negative error code otherwise
- */
-int NeoDevice::configure(PipeConfig &pipeConfig,
-			 V4L2DeviceFormat *formatInput0,
-			 V4L2DeviceFormat *formatInput1,
-			 V4L2DeviceFormat *formatFrame,
-			 V4L2DeviceFormat *formatIr)
-{
-	int ret;
-
-	/*
-	 * Record optional (mutable) pads usage for later reference and
-	 * configure their links accordingly.
-	 * Stats and params pads are always enabled for IPA operation.
-	 */
-	configInput1_ = formatInput1->fourcc.isValid();
-	configFrame_ = formatFrame->fourcc.isValid();
-	configIr_ = formatIr->fourcc.isValid();
-
-	bool enableInput1 = padActiveInput1();
-	bool enableFrame = padActiveFrame();
-	bool enableIr = padActiveIr();
-	bool enableParams = true;
-	bool enableStats = true;
-
-	enableLinks(enableInput1, enableFrame, enableIr, enableParams, enableStats);
-
-	ret = configureVideoDevice(input0_.get(), PAD_INPUT0, formatInput0);
-	if (ret)
-		return ret;
-
-	if (padActiveInput1()) {
-		ret = configureVideoDevice(input1_.get(), PAD_INPUT1, formatInput1);
-		if (ret)
-			return ret;
-	}
-
-	if (padActiveFrame()) {
-		ret = configureVideoDevice(frame_.get(), PAD_FRAME, formatFrame);
-		if (ret)
-			return ret;
-	}
-
-	if (padActiveIr()) {
-		ret = configureVideoDevice(ir_.get(), PAD_IR, formatIr);
-		if (ret)
-			return ret;
-	}
-
-	uint32_t fourcc;
-	int size;
-	if (apiVersion_ == NEOISP_LEGACY_META_BUFFER) {
-		fourcc = V4L2_META_FMT_NEO_ISP_PARAMS;
-		size = sizeof(struct neoisp_meta_params_s);
-	} else {
-		fourcc = V4L2_META_FMT_NEO_ISP_EXT_PARAMS;
-		size = sizeof(struct neoisp_ext_params_s);
-	}
-
-	ret = configureVideoDeviceMeta(params_.get(), PAD_PARAMS,
-				       fourcc, size);
-	if (ret)
-		return ret;
-
-	if (apiVersion_ == NEOISP_LEGACY_META_BUFFER) {
-		fourcc = V4L2_META_FMT_NEO_ISP_STATS;
-		size = sizeof(struct neoisp_meta_stats_s);
-	} else {
-		fourcc = V4L2_META_FMT_NEO_ISP_EXT_STATS;
-		size = sizeof(struct neoisp_ext_stats_s);
-	}
-
-	ret = configureVideoDeviceMeta(stats_.get(), PAD_STATS,
-				       fourcc, size);
-	if (ret)
-		return ret;
-
-	/* Crop the top embedded data lines if any */
-	Size sizeInput = formatInput0->size;
-	int top = pipeConfig.topLines;
-	Rectangle rect{ 0, top, sizeInput.width, sizeInput.height - top };
-	ret = input0_->setSelection(V4L2_SEL_TGT_CROP, &rect);
-
-	if (padActiveInput1()) {
-		sizeInput = formatInput1->size;
-		rect = Rectangle{ 0, top, sizeInput.width, sizeInput.height - top };
-		ret |= input1_->setSelection(V4L2_SEL_TGT_CROP, &rect);
-	}
-
-	return ret;
 }
 
 namespace {
@@ -867,6 +781,172 @@ const std::vector<V4L2PixelFormat> &NeoDevice::input1Formats()
 	};
 
 	return formats;
+}
+
+/**
+ * \brief Configure the media link for a NEO video device
+ * \param[in] device The video device identifier
+ * \param[in] enable True to enable the link, false to disable it
+ *
+ * This function enables or disables the media link associated with the
+ * specified NEO video device. It retrieves the media entity corresponding
+ * to the device, validates that it has exactly one pad with one link, and
+ * then sets the link's enabled state.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \retval -ENODEV if the video device entity or its link is not found
+ */
+int NeoDevice::configureVideoDeviceLink(VideoDevice device, bool enable)
+{
+	unsigned int id = static_cast<int>(device);
+	LOG(NxpNeoDev, Debug)
+		<< logPrefix() << "Configure video device " << id
+		<< " link status " << (enable ? "enabled" : "disabled");
+
+	const std::string &name = videoDeviceName(device);
+	MediaEntity *entity = media_->getEntityByName(name);
+	if (!entity || (entity->pads().size()) != 1 ||
+	    (entity->pads()[0]->links().size() != 1)) {
+		LOG(NxpNeoDev, Error)
+			<< "Video device link not found device " << id;
+		return -ENODEV;
+	}
+
+	MediaLink *link = entity->pads()[0]->links()[0];
+	int ret = link->setEnabled(enable);
+	if (ret)
+		LOG(NxpNeoDev, Error) << "Error setting link device " << id;
+
+	return ret;
+}
+
+/**
+ * \brief Configure a NEO video device with the specified format
+ * \param[in] device The video device identifier
+ * \param[in,out] format The V4L2 device format to configure
+ *
+ * This function configures a pixel video device (input0, input1, frame, or ir)
+ * with the provided format. Metadata devices (params, stats) are not supported
+ * by this function and should be configured using configureVideoDeviceMeta()
+ * instead.
+ *
+ * The function validates that the device is a valid pixel video device before
+ * attempting to apply the format configuration.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \retval -EINVAL if the device is invalid or is a metadata device
+ */
+int NeoDevice::configureVideoDevice(VideoDevice device, V4L2DeviceFormat *format)
+{
+	unsigned int id = static_cast<int>(device);
+	LOG(NxpNeoDev, Debug)
+		<< logPrefix() << "Configure video device " << id
+		<< " format " << format->toString();
+
+	if (!isDeviceValid(device) || isDeviceMeta(device)) {
+		LOG(NxpNeoDev, Error)
+			<< "Invalid pixel video device " << id;
+		return -EINVAL;
+	}
+
+	V4L2VideoDevice *video = videoDevice(device);
+	ASSERT(video);
+	int ret = video->setFormat(format);
+	if (ret) {
+		LOG(NxpNeoDev, Error)
+			<< logPrefix() << "Failed to set video device format " << id;
+	}
+
+	return ret;
+}
+
+/**
+ * \brief Configure a NEO metadata video device with API version-specific format
+ * \param[in] device The video device identifier (must be a metadata device)
+ * \param[in] apiVersion The NEO ISP metadata API version to use
+ *
+ * This function configures a metadata video device (params or stats) with the
+ * appropriate format based on the specified API version. It supports two API
+ * versions:
+ * - NEOISP_LEGACY_META_BUFFER: Uses legacy metadata formats
+ *   (V4L2_META_FMT_NEO_ISP_PARAMS and V4L2_META_FMT_NEO_ISP_STATS)
+ * - Extensible format: Uses extensible metadata formats
+ *   (V4L2_META_FMT_NEO_ISP_EXT_PARAMS and V4L2_META_FMT_NEO_ISP_EXT_STATS)
+ *
+ * The function validates that the device is a valid metadata device before
+ * applying the format configuration. Pixel video devices (input0, input1,
+ * frame, ir) are not supported by this function and should be configured
+ * using configureVideoDevice() instead.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \retval -EINVAL if the device is invalid or is not a metadata device
+ */
+int NeoDevice::configureVideoDeviceMeta(VideoDevice device, unsigned int apiVersion)
+{
+	unsigned int id = static_cast<int>(device);
+	LOG(NxpNeoDev, Debug)
+		<< logPrefix() << "Configure video device meta " << id
+		<< " apiVersion " << apiVersion;
+
+	if (!isDeviceValid(device) || !isDeviceMeta(device)) {
+		LOG(NxpNeoDev, Error)
+			<< "Invalid metadata video device " << id;
+		return -EINVAL;
+	}
+
+	V4L2DeviceFormat format = {};
+	static const std::map<VideoDevice, std::pair<unsigned int, size_t>>
+	metaFormatsLegacy = {
+		{ VideoDevice::Params, { V4L2_META_FMT_NEO_ISP_PARAMS, sizeof(struct neoisp_meta_params_s) }},
+		{ VideoDevice::Stats, { V4L2_META_FMT_NEO_ISP_STATS, sizeof(struct neoisp_meta_stats_s) }},
+	};
+
+	static const std::map<VideoDevice, std::pair<unsigned int, size_t>>
+	metaFormatsExtensible = {
+		{ VideoDevice::Params, { V4L2_META_FMT_NEO_ISP_EXT_PARAMS, sizeof(struct neoisp_ext_params_s) }},
+		{ VideoDevice::Stats, { V4L2_META_FMT_NEO_ISP_EXT_STATS, sizeof(struct neoisp_ext_stats_s) }},
+	};
+
+	auto &formatMap = (apiVersion == NEOISP_LEGACY_META_BUFFER)
+				  ? metaFormatsLegacy
+				  : metaFormatsExtensible;
+	auto it = formatMap.find(device);
+	ASSERT(it != formatMap.end());
+	const auto &[dev, formatPair] = *it;
+	const auto &[fourcc, size] = formatPair;
+	format.fourcc = V4L2PixelFormat(fourcc);
+	format.planes[0].size = size;
+
+	V4L2VideoDevice *video = videoDevice(device);
+	ASSERT(video);
+	int ret = video->setFormat(&format);
+	if (ret) {
+		LOG(NxpNeoDev, Error)
+			<< logPrefix() << "Failed to set video device format device " << id;
+	}
+
+	return ret;
+}
+
+/**
+ * \brief Check if a video device pad is configured and active
+ * \param[in] device The video device identifier to check
+ *
+ * This function determines whether a specific NEO video device pad has been
+ * configured and is currently active. A pad is considered active if it was
+ * included in the most recent successful configure() operation.
+ *
+ * This is primarily used internally to:
+ * - Determine which buffers need to be allocated/released
+ * - Control which video devices should be started/stopped during streaming
+ * - Validate operations on optional/mutable pads
+ *
+ * \return True if the device pad is configured and active, false otherwise
+ */
+bool NeoDevice::padActive(VideoDevice device) const
+{
+	auto it = std::find(configured_.begin(), configured_.end(), device);
+	return it != configured_.end();
 }
 
 } /* namespace libcamera */
