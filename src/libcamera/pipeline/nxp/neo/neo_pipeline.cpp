@@ -1009,14 +1009,14 @@ CameraConfiguration::Status NxpNeoCameraConfiguration::validateRaw()
 			V4L2VideoDevice *device;
 			if (isFrame) {
 				const std::vector<PixelFormat> &pixelFormats =
-					neo->framePixelFormats();
+					neo->capturePixelFormats(NeoDevice::VideoDevice::Frame);
 				if (std::find(pixelFormats.begin(), pixelFormats.end(),
 					      cfg->pixelFormat) == pixelFormats.end())
 					cfg->pixelFormat = formats::YUYV;
 				device = neo->frame_.get();
 			} else {
 				const std::vector<PixelFormat> &pixelFormats =
-					neo->irPixelFormats();
+					neo->capturePixelFormats(NeoDevice::VideoDevice::Ir);
 				if (std::find(pixelFormats.begin(), pixelFormats.end(),
 					      cfg->pixelFormat) == pixelFormats.end())
 					cfg->pixelFormat = formats::R8;
@@ -1393,10 +1393,12 @@ PipelineHandlerNxpNeo::generateConfigurationRaw(Camera *camera,
 			 * role for now.
 			 */
 			NeoDevice *neo = data->neoDevice();
-			for (const PixelFormat &format : neo->framePixelFormats())
+			NeoDevice::VideoDevice device = NeoDevice::VideoDevice::Frame;
+			for (const PixelFormat &format : neo->capturePixelFormats(device))
 				streamFormats[format] = pixelRanges;
 			if (data->sensorIsRgbIr()) {
-				for (const PixelFormat &format : neo->irPixelFormats())
+				device = NeoDevice::VideoDevice::Ir;
+				for (const PixelFormat &format : neo->capturePixelFormats(device))
 					streamFormats[format] = pixelRanges;
 			}
 
@@ -2744,7 +2746,7 @@ int NxpNeoCameraData::enumerateFormatsRaw()
 	const std::vector<unsigned int> &mbusCodes = sensor_->mbusCodes();
 	const std::vector<unsigned int> &bayerCodes = ISIPipe::bayerMbusCodes();
 	const std::vector<V4L2PixelFormat> &neoPixelFormats =
-		NeoDevice::input0Formats();
+		NeoDevice::outputFormats(NeoDevice::VideoDevice::Input0);
 
 	/*  Camera formats filtering may be defined in the config file */
 	std::optional<unsigned int> bppFilter =

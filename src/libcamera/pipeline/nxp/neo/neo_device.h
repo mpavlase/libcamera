@@ -62,6 +62,9 @@ public:
 	static const std::string &subdeviceName();
 	static const std::string &videoDeviceName(VideoDevice device);
 
+	const std::vector<PixelFormat> &capturePixelFormats(VideoDevice device) const;
+	static const std::vector<V4L2PixelFormat> &outputFormats(VideoDevice device);
+
 	std::unique_ptr<V4L2Subdevice> isp_;
 	std::unique_ptr<V4L2VideoDevice> input0_;
 	std::unique_ptr<V4L2VideoDevice> input1_;
@@ -77,11 +80,6 @@ public:
 	{
 		return "Neo[" + isp_->deviceNode() + "] ";
 	}
-
-	const std::vector<PixelFormat> &framePixelFormats();
-	const std::vector<PixelFormat> &irPixelFormats();
-	static const std::vector<V4L2PixelFormat> &input0Formats();
-	static const std::vector<V4L2PixelFormat> &input1Formats();
 
 	const MediaDevice *media() const
 	{

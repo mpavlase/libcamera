@@ -614,60 +614,72 @@ const std::string &NeoDevice::videoDeviceName(VideoDevice device)
 }
 
 namespace {
-	std::vector<PixelFormat> queryPixelFormats(V4L2VideoDevice *device)
-	{
-		V4L2VideoDevice::Formats deviceFormats = device->formats();
-		std::vector<PixelFormat> formats;
-		for (const auto &[format, ranges] : deviceFormats) {
-			PixelFormat pixelFormat = format.toPixelFormat(false);
-			if (pixelFormat.isValid())
-				formats.push_back(pixelFormat);
-		}
-		return formats;
+
+std::vector<PixelFormat> queryPixelFormats(V4L2VideoDevice *device)
+{
+	V4L2VideoDevice::Formats deviceFormats = device->formats();
+	std::vector<PixelFormat> formats;
+	for (const auto &[format, ranges] : deviceFormats) {
+		PixelFormat pixelFormat = format.toPixelFormat(false);
+		if (pixelFormat.isValid())
+			formats.push_back(pixelFormat);
 	}
+	return formats;
+}
+
 } /* namespace */
 
 /**
- * \brief Report the supported pixel formats on the frame capture node
+ * \brief Get the supported pixel formats for a NEO capture video device
+ * \param[in] device The video device identifier
  *
- * \return The vector of frame pixel formats
+ * This function returns the list of supported pixel formats for the specified
+ * NEO capture video device.
+ *
+ * The pixel formats are queried once during the first call and cached in
+ * static variables for subsequent calls. The formats are obtained by querying
+ * the underlying V4L2 video device and converting V4L2 formats to libcamera
+ * PixelFormat objects.
+ *
+ * \return A reference to the vector of supported PixelFormat objects for the
+ * specified device, or an empty vector if the device is invalid
  */
-const std::vector<PixelFormat> &NeoDevice::framePixelFormats()
+const std::vector<PixelFormat> &NeoDevice::capturePixelFormats(VideoDevice device) const
 {
-	/* Initialize once */
-	static std::vector<PixelFormat> pixelFormats =
-		queryPixelFormats(frame_.get());
+	static const std::vector<PixelFormat> frameFormats =
+		queryPixelFormats(videoDevice(VideoDevice::Frame));
+	static const std::vector<PixelFormat> irFormats =
+		queryPixelFormats(videoDevice(VideoDevice::Ir));
+	static const std::vector<PixelFormat> empty;
 
-	return pixelFormats;
+	if (device == VideoDevice::Frame)
+		return frameFormats;
+	else if (device == VideoDevice::Ir)
+		return irFormats;
+
+	LOG(NxpNeoDev, Error)
+		<< "Invalid capture pixel device " << static_cast<int>(device);
+	return empty;
 }
 
 /**
- * \brief Report the supported pixel formats on the IR capture node
+ * \brief Report the supported V4L2 pixel formats on the output nodes
+ * \param[in] device The video device identifier
  *
- * \return The vector of IR pixel formats
+ * This function returns the supported V4L2 pixel formats for the output nodes.
+ * These formats represent raw Bayer patterns and grayscale formats at various
+ * bit depths.
+ *
+ * This function is static with a predefined list of V4L2 pixel formats as it
+ * may be called during the early stages of the pipeline handler creation before
+ * the NeoDevice object is created.
+ *
+ * \return A reference to the vector of supported V4L2PixelFormat objects for
+ * the relevant devices, or an empty vector if the device is invalid
  */
-const std::vector<PixelFormat> &NeoDevice::irPixelFormats()
+const std::vector<V4L2PixelFormat> &NeoDevice::outputFormats(VideoDevice device)
 {
-	/* Initialize once */
-	static std::vector<PixelFormat> pixelFormats =
-		queryPixelFormats(ir_.get());
-
-	return pixelFormats;
-}
-
-/**
- * \brief Report the supported V4L2 pixel formats on the input0 output node
- *
- * This function returns the supported V4L2 pixel formats for the input0 node.
- * It has to remain as a static function with a predefined list of V4L2 pixel
- * formats as it may be called during the early stages of the pipeline handler
- * creation before the NeoDevice object is created.
- *
- * \return The vector of input0 pixel formats
- */
-const std::vector<V4L2PixelFormat> &NeoDevice::input0Formats()
-{
-	static const std::vector<V4L2PixelFormat> formats = {
+	static const std::vector<V4L2PixelFormat> outputFormats = {
 		V4L2PixelFormat(V4L2_PIX_FMT_SBGGR8),
 		V4L2PixelFormat(V4L2_PIX_FMT_SGBRG8),
 		V4L2PixelFormat(V4L2_PIX_FMT_SGRBG8),
@@ -693,50 +705,14 @@ const std::vector<V4L2PixelFormat> &NeoDevice::input0Formats()
 		V4L2PixelFormat(V4L2_PIX_FMT_Y12),
 		V4L2PixelFormat(V4L2_PIX_FMT_Y16),
 	};
+	static const std::vector<V4L2PixelFormat> empty;
 
-	return formats;
-}
+	if (device == VideoDevice::Input0 || device == VideoDevice::Input1)
+		return outputFormats;
 
-/**
- * \brief Report the supported V4L2 pixel formats on the input1 output node
- *
- * This function returns the supported V4L2 pixel formats for the input1 node.
- * It has to remain as a static function with a predefined list of V4L2 pixel
- * formats as it may be called during the early stages of the pipeline handler
- * creation before the NeoDevice object is created.
- *
- * \return The vector of input1 pixel formats
- */
-const std::vector<V4L2PixelFormat> &NeoDevice::input1Formats()
-{
-	static const std::vector<V4L2PixelFormat> formats = {
-		V4L2PixelFormat(V4L2_PIX_FMT_SBGGR8),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGBRG8),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGRBG8),
-		V4L2PixelFormat(V4L2_PIX_FMT_SRGGB8),
-		V4L2PixelFormat(V4L2_PIX_FMT_SBGGR10),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGBRG10),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGRBG10),
-		V4L2PixelFormat(V4L2_PIX_FMT_SRGGB10),
-		V4L2PixelFormat(V4L2_PIX_FMT_SBGGR12),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGBRG12),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGRBG12),
-		V4L2PixelFormat(V4L2_PIX_FMT_SRGGB12),
-		V4L2PixelFormat(V4L2_PIX_FMT_SBGGR14),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGBRG14),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGRBG14),
-		V4L2PixelFormat(V4L2_PIX_FMT_SRGGB14),
-		V4L2PixelFormat(V4L2_PIX_FMT_SBGGR16),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGBRG16),
-		V4L2PixelFormat(V4L2_PIX_FMT_SGRBG16),
-		V4L2PixelFormat(V4L2_PIX_FMT_SRGGB16),
-		V4L2PixelFormat(V4L2_PIX_FMT_GREY),
-		V4L2PixelFormat(V4L2_PIX_FMT_Y10),
-		V4L2PixelFormat(V4L2_PIX_FMT_Y12),
-		V4L2PixelFormat(V4L2_PIX_FMT_Y16),
-	};
-
-	return formats;
+	LOG(NxpNeoDev, Error)
+		<< "Invalid output pixel device " << static_cast<int>(device);
+	return empty;
 }
 
 /**
