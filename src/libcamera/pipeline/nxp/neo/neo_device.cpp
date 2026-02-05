@@ -44,6 +44,19 @@ namespace libcamera {
 LOG_DEFINE_CATEGORY(NxpNeoDev)
 
 /**
+ * \struct PipeConfig
+ * \brief Configuration parameters for the Neo ISP device
+ *
+ * This structure contains the configuration settings that control the behavior
+ * of the Neo ISP processing pipeline.
+ */
+
+/**
+ * \var PipeConfig::topLines
+ * \brief The number of top embedded data line to crop from the input raw images
+ */
+
+/**
  * \enum NeoDevice::VideoDevice
  * \brief The video devices exposed by the ISP instance
  *
@@ -174,7 +187,10 @@ int NeoDevice::init(MediaDevice *media)
 	}
 
 	/*
-	 * Get Neo ISP hardware and driver capabilities
+	 * Get Neo ISP hardware and driver capabilities.
+	 * Fallback to MSB alignment for backward compatibility with older
+	 * kernel drivers that don't expose V4L2_CID_NEOISP_QUERYCAP. This was
+	 * the default behavior in earlier driver versions.
 	 */
 	ctlInfo = isp_->controlInfo(V4L2_CID_NEOISP_QUERYCAP);
 	if (ctlInfo != nullptr) {
@@ -184,7 +200,6 @@ int NeoDevice::init(MediaDevice *media)
 			hwCapabilities_ =
 				ctrls.get(V4L2_CID_NEOISP_QUERYCAP).get<int32_t>();
 	} else {
-		/* Fallback on MSB for backward compatibility */
 		hwCapabilities_ = NEO_CAP_ALIGNMENT_MSB;
 	}
 

@@ -65,6 +65,10 @@ public:
 	const std::vector<PixelFormat> &capturePixelFormats(VideoDevice device) const;
 	static const std::vector<V4L2PixelFormat> &outputFormats(VideoDevice device);
 
+	const MediaDevice *media() const { return media_; }
+	uint32_t hwCapabilities() const { return hwCapabilities_; }
+	uint32_t apiVersion() const { return apiVersion_; }
+
 	std::unique_ptr<V4L2Subdevice> isp_;
 	std::unique_ptr<V4L2VideoDevice> input0_;
 	std::unique_ptr<V4L2VideoDevice> input1_;
@@ -76,30 +80,15 @@ public:
 	std::vector<std::unique_ptr<FrameBuffer>> paramsBuffers_;
 	std::vector<std::unique_ptr<FrameBuffer>> statsBuffers_;
 
-	std::string logPrefix() const
-	{
-		return "Neo[" + isp_->deviceNode() + "] ";
-	}
-
-	const MediaDevice *media() const
-	{
-		return media_;
-	}
-
-	uint32_t hwCapabilities() const
-	{
-		return hwCapabilities_;
-	}
-
-	uint32_t apiVersion() const
-	{
-		return apiVersion_;
-	}
-
 private:
 	int configureVideoDeviceLink(VideoDevice device, bool enable);
 	int configureVideoDevice(VideoDevice device, V4L2DeviceFormat *format);
 	int configureVideoDeviceMeta(VideoDevice device, unsigned int apiVersion);
+
+	std::string logPrefix() const
+	{
+		return "Neo[" + isp_->deviceNode() + "] ";
+	}
 
 	MediaDevice *media_ = nullptr;
 	std::map<VideoDevice, std::unique_ptr<V4L2VideoDevice> *> videos_;
