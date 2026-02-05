@@ -103,11 +103,6 @@ private:
 	int configureVideoDevice(VideoDevice device, V4L2DeviceFormat *format);
 	int configureVideoDeviceMeta(VideoDevice device, unsigned int apiVersion);
 
-	bool padActive(VideoDevice device) const;
-	bool padActiveInput1() const { return padActive(VideoDevice::Input1); }
-	bool padActiveFrame() const { return padActive(VideoDevice::Frame); }
-	bool padActiveIr() const { return padActive(VideoDevice::Ir); }
-
 	MediaDevice *media_ = nullptr;
 	std::map<VideoDevice, std::unique_ptr<V4L2VideoDevice> *> videos_;
 	std::vector<VideoDevice> configured_;

@@ -225,149 +225,123 @@ done:
  * \brief Allocate buffers for all the NEO video devices
  * \param[in] bufferCount The number of buffers to allocate
  *
- * Function handles buffer allocation for every pad of NEO.
- * Buffers queued onto INPUT0 and INPUT1 pads come from the
- * pipeline and are imported.
- * Params and stats buffer are allocated on respective device
- * nodes.
- * Buffers for output (Capture) frame and IR pads are provided
- * by the application and are imported.
+ * This function allocates and imports buffers for all configured NEO video
+ * devices. It handles two types of buffer allocation:
+ *
+ * 1. **Pixel buffers**: These buffers are imported from external sources
+ *
+ * 2. **Metadata buffers**: These are allocated as internal buffers using a
+ *      export-then-import technique:
+ *    - exportBuffers() creates orphaned DMABUF buffers
+ *    - importBuffers() configures the queue to use V4L2 DMABUF memory type
+ *    - This approach allows metadata buffers to be shared across multiple ISP
+ *      instances (e.g., during RGBIr dual context mode)
+ *
+ * The function only processes devices that were configured in the most recent
+ * configure() call. If any allocation fails, all buffers are freed via
+ * freeBuffers() to ensure a clean state.
  *
  * \return 0 on success or a negative error code otherwise
+ * \retval -ENOMEM if buffer allocation or import fails
  */
 int NeoDevice::allocateBuffers(unsigned int bufferCount)
 {
-	int ret;
+	int ret = 0;
+	LOG(NxpNeoDev, Debug) << logPrefix() << "Allocate buffers " << bufferCount;
 
-	/* Share buffers between ISI outputs and NEO input0/input1 inputs. */
-	ret = input0_->importBuffers(bufferCount);
-	if (ret) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to import NEO input0 input buffers";
-		return ret;
-	}
+	auto createBuffers =
+		[this](VideoDevice device,
+		       std::vector<std::unique_ptr<FrameBuffer>> &buffers,
+		       unsigned int count) {
+			V4L2VideoDevice *video = videoDevice(device);
+			ASSERT(video);
+			int res = video->exportBuffers(count, &buffers);
+			if (res < 0 || static_cast<unsigned int>(res) != count) {
+				LOG(NxpNeoDev, Error)
+					<< logPrefix() << "Failed to export buffers device "
+					<< static_cast<int>(device);
+				return -ENOMEM;
+			}
 
-	if (padActiveInput1()) {
-		ret = input1_->importBuffers(bufferCount);
+			res = video->importBuffers(count);
+			if (res) {
+				LOG(NxpNeoDev, Error)
+					<< logPrefix() << "Failed to import buffers device "
+					<< static_cast<int>(device);
+				return -ENOMEM;
+			}
+			return res;
+		};
+
+	const std::map<VideoDevice, std::vector<std::unique_ptr<FrameBuffer>> *>
+	metaBuffers = {
+		{ VideoDevice::Params, &paramsBuffers_ },
+		{ VideoDevice::Stats, &statsBuffers_ },
+	};
+
+	for (auto device : configured_) {
+		if (isDeviceMeta(device))
+			continue;
+		V4L2VideoDevice *video = videoDevice(device);
+		ASSERT(video);
+		ret = video->importBuffers(bufferCount);
 		if (ret) {
 			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to import NEO input1 input buffers";
-			return ret;
+				<< logPrefix() << "Failed to import buffers device "
+				<< static_cast<int>(device);
+			break;
 		}
 	}
+	if (ret)
+		goto done;
 
-	/*
-	 * Params/stats buffers are allocated here to be used as internal
-	 * buffers. We use exportBuffers() and importBuffers() to orphan the
-	 * exported buffers and operate the queue with the V4L2 DMABUF memory
-	 * type. Conversely, using allocateBuffer() would export buffers bound
-	 * to the queue operated with the V4L2 MMAP memory type. That way the
-	 * meta buffers exported can be used by any ISP instances for instance
-	 * during RGBIr dual context mode of operation.
-	 */
-	int res;
-	res = params_->exportBuffers(bufferCount, &paramsBuffers_);
-	ret = res > 0 && static_cast<unsigned int>(res) == bufferCount ? 0 : -ENOMEM;
-	ret |= params_->importBuffers(bufferCount);
-	if (ret < 0) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to allocate NEO params buffers";
-		goto error;
+	for (auto device : kMetaVideoDevices) {
+		auto buffers = metaBuffers.at(device);
+		ret = createBuffers(device, *buffers, bufferCount);
+		if (ret)
+			break;
 	}
 
-	res = stats_->exportBuffers(bufferCount, &statsBuffers_);
-	ret = res > 0 && static_cast<unsigned int>(res) == bufferCount ? 0 : -ENOMEM;
-	ret |= stats_->importBuffers(bufferCount);
-	if (ret < 0) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to allocate NEO stats buffers";
-		goto error;
-	}
-
-	/* NEO Frame/ir output buffers allocated by application */
-	if (padActiveFrame()) {
-		ret = frame_->importBuffers(bufferCount);
-		if (ret < 0) {
-			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to import NEO frame buffers";
-			goto error;
-		}
-	}
-
-	if (padActiveIr()) {
-		ret = ir_->importBuffers(bufferCount);
-		if (ret < 0) {
-			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to import NEO ir buffers";
-			goto error;
-		}
-	}
-
-	return 0;
-
-error:
-	freeBuffers();
+done:
+	if (ret)
+		freeBuffers();
 
 	return ret;
 }
 
 /**
  * \brief Release buffers for all the NEO video devices
+ *
+ * This function releases all buffers that were previously allocated by
+ * allocateBuffers(). It performs the following operations:
+ *
+ * 1. **Metadata buffers**: Clears the internal metadata buffer vectors
+ *
+ * 2. **Video device buffers**: Calls releaseBuffers() on all configured
+ *    video devices to release their V4L2 buffer queues.
+ *
+ * The function processes only devices that were configured in the most recent
+ * configure() call. Any errors during buffer release are logged but do not
+ * prevent the function from attempting to release buffers from remaining
+ * devices.
  */
 void NeoDevice::freeBuffers()
 {
-	int ret;
+	LOG(NxpNeoDev, Debug) << logPrefix() << "Free buffers";
+
+	for (auto device : configured_) {
+		V4L2VideoDevice *video = videoDevice(device);
+		ASSERT(video);
+		int ret = video->releaseBuffers();
+		if (ret) {
+			LOG(NxpNeoDev, Error)
+				<< logPrefix() << "Failed to release buffers device "
+				<< static_cast<int>(device);
+		}
+	}
 
 	paramsBuffers_.clear();
 	statsBuffers_.clear();
-
-	ret = input0_->releaseBuffers();
-	if (ret)
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to release NEO input0 buffers";
-
-	if (padActiveInput1()) {
-		ret = input1_->releaseBuffers();
-		if (ret)
-			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to release NEO input1 buffers";
-	}
-
-	ret = params_->releaseBuffers();
-	if (ret)
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to release NEO params buffers";
-
-	ret = stats_->releaseBuffers();
-	if (ret)
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to release NEO stats buffers";
-
-	if (padActiveFrame()) {
-		ret = frame_->releaseBuffers();
-		if (ret)
-			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to release NEO frame buffers";
-	}
-
-	if (padActiveIr()) {
-		ret = ir_->releaseBuffers();
-		if (ret)
-			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to release NEO ir buffers";
-	}
 }
 
 /**
@@ -482,101 +456,83 @@ int NeoDevice::configure(const PipeConfig &pipeConfig,
 }
 
 /**
- * \brief Start NEO video devices operation
+ * \brief Start streaming on all configured NEO video devices
+ *
+ * This function initiates video streaming on the NEO ISP device by:
+ * - Enabling frame start events on the ISP subdevice
+ * - Starting streaming (streamOn) on all configured video devices
+ *
+ * The function iterates through all video devices that were configured during
+ * the most recent configure() call and starts streaming on each one.
+ *
  * \return 0 on success or a negative error code otherwise
+ * \retval -EBUSY if a device is already streaming
+ * \retval -EINVAL if the device is not properly configured
  */
 int NeoDevice::start()
 {
-	int ret;
+	LOG(NxpNeoDev, Debug) << logPrefix() << "Start";
 
-	/* Start the NEO output video devices. */
-	if (padActiveFrame()) {
-		ret = frame_->streamOn();
+	int ret = isp_->setFrameStartEnabled(true);
+	if (ret) {
+		LOG(NxpNeoDev, Error)
+			<< logPrefix() << "FrameStart failure " << ret;
+		return ret;
+	}
+
+	for (auto device : configured_) {
+		V4L2VideoDevice *video = videoDevice(device);
+		ASSERT(video);
+		ret = video->streamOn();
 		if (ret) {
 			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to start NEO frame";
-			return ret;
+				<< logPrefix() << "Failed to start NEO device "
+				<< static_cast<int>(device);
+			break;
 		}
 	}
 
-	if (padActiveIr()) {
-		ret = ir_->streamOn();
-		if (ret) {
-			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to start NEO ir";
-			return ret;
-		}
-	}
+	if (ret)
+		stop();
 
-	/* Start the NEO params and stats devices. */
-	ret = params_->streamOn();
-	if (ret) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to start NEO params";
-		return ret;
-	}
-
-	ret = stats_->streamOn();
-	if (ret) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to start NEO stats";
-		return ret;
-	}
-
-	/* Start the NEO input video devices. */
-	ret = input0_->streamOn();
-	if (ret) {
-		LOG(NxpNeoDev, Error)
-			<< logPrefix()
-			<< "Failed to start NEO input0";
-		return ret;
-	}
-
-	if (padActiveInput1()) {
-		ret = input1_->streamOn();
-		if (ret) {
-			LOG(NxpNeoDev, Error)
-				<< logPrefix()
-				<< "Failed to start NEO input1";
-			return ret;
-		}
-	}
-
-	ret = isp_->setFrameStartEnabled(true);
-	if (ret) {
-		LOG(NxpNeoDev, Error) << "FrameStart failure ret";
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 /**
- * \brief Stop video devices operation
+ * \brief Stop streaming on all configured NEO video devices
+ *
+ * This function stops video streaming on the NEO ISP device by:
+ * - Disabling frame start events on the ISP subdevice
+ * - Stopping streaming (streamOff) on all configured video devices
+ *
+ * The function iterates through all video devices that were configured during
+ * the most recent configure() call and stops streaming on each one. Errors
+ * from individual devices are logged but do not prevent the function from
+ * attempting to stop remaining devices.
+ *
  * \return 0 on success or a negative error code otherwise
  */
 int NeoDevice::stop()
 {
-	int ret;
+	LOG(NxpNeoDev, Debug) << logPrefix() << "Stop";
 
-	ret = isp_->setFrameStartEnabled(false);
+	int ret = isp_->setFrameStartEnabled(false);
+	if (ret) {
+		LOG(NxpNeoDev, Error)
+			<< logPrefix() << "FrameStart failure " << ret;
+	}
 
-	if (padActiveFrame())
-		ret |= frame_->streamOff();
-	if (padActiveIr())
-		ret |= ir_->streamOff();
-	ret |= params_->streamOff();
-	ret |= stats_->streamOff();
-	ret |= input0_->streamOff();
-	if (padActiveInput1())
-		ret |= input1_->streamOff();
-
-	if (ret)
-		LOG(NxpNeoDev, Error) << logPrefix() << "Failed to stop";
+	for (auto device : configured_) {
+		V4L2VideoDevice *video = videoDevice(device);
+		ASSERT(video);
+		int res = video->streamOff();
+		if (res) {
+			LOG(NxpNeoDev, Error)
+				<< logPrefix() << "Failed to stop NEO device "
+				<< static_cast<int>(device);
+			ret |= res;
+		}
+	}
 
 	return ret;
 }
@@ -926,27 +882,6 @@ int NeoDevice::configureVideoDeviceMeta(VideoDevice device, unsigned int apiVers
 	}
 
 	return ret;
-}
-
-/**
- * \brief Check if a video device pad is configured and active
- * \param[in] device The video device identifier to check
- *
- * This function determines whether a specific NEO video device pad has been
- * configured and is currently active. A pad is considered active if it was
- * included in the most recent successful configure() operation.
- *
- * This is primarily used internally to:
- * - Determine which buffers need to be allocated/released
- * - Control which video devices should be started/stopped during streaming
- * - Validate operations on optional/mutable pads
- *
- * \return True if the device pad is configured and active, false otherwise
- */
-bool NeoDevice::padActive(VideoDevice device) const
-{
-	auto it = std::find(configured_.begin(), configured_.end(), device);
-	return it != configured_.end();
 }
 
 } /* namespace libcamera */
