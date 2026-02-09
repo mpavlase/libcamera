@@ -45,6 +45,7 @@ public:
 
 	ISIPipe(unsigned int index)
 		: index_(index), state_(kStateIdle) {}
+	int init(const MediaDevice *media);
 
 	int exportBuffers(unsigned int count,
 			  std::vector<std::unique_ptr<FrameBuffer>> *buffers);
@@ -77,10 +78,6 @@ public:
 	std::unique_ptr<V4L2VideoDevice> output_;
 
 private:
-	friend class ISIDevice;
-
-	int init(const MediaDevice *media);
-
 	void setState(unsigned int state) { state_ = state; }
 	unsigned getState() const { return state_; }
 	bool stateIdle() const { return state_ == kStateIdle; }
