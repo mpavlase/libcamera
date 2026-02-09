@@ -152,13 +152,6 @@ int ISIPipe::init(const MediaDevice *media)
 int ISIPipe::exportBuffers(unsigned int count,
 			   std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
-	if (!stateConfigured()) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix()
-			<< "Export buffer while not configured "
-			<< "(" << getState() << ")";
-	}
-
 	return output_->exportBuffers(count, buffers);
 }
 
@@ -168,23 +161,7 @@ int ISIPipe::exportBuffers(unsigned int count,
  */
 int ISIPipe::start()
 {
-	int ret;
-
-	if (!stateConfigured()) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix()
-			<< "Starting while not in configured state"
-			<< "(" << getState() << ")";
-		return -EAGAIN;
-	}
-
-	ret = output_->streamOn();
-	if (ret)
-		return ret;
-
-	setState(kStateActive);
-
-	return 0;
+	return output_->streamOn();
 }
 
 /**
@@ -193,18 +170,7 @@ int ISIPipe::start()
  */
 int ISIPipe::stop()
 {
-	if (!stateActive()) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix()
-			<< "Stopping while not active "
-			<< "(" << getState() << ")";
-		return -EAGAIN;
-	}
-
-	int ret = output_->streamOff();
-	setState(kStateConfigured);
-
-	return ret;
+	return output_->streamOff();
 }
 
 /**
@@ -255,13 +221,6 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
 		       V4L2DeviceFormat &deviceFormat)
 {
 	int ret;
-
-	if (!(stateIdle() || stateConfigured())) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix()
-			<< "Can't be configured in state " << getState();
-		return -ENODEV;
-	}
 
 	V4L2SubdeviceFormat sourceFormat;
 	const std::vector<unsigned int> processedSinkCodes = sinkMbusCodesProcessed();
@@ -355,8 +314,6 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
 		return ret;
 	}
 
-	setState(kStateConfigured);
-
 	LOG(NxpNeoIsiDev, Debug)
 		<< logPrefix() << " Video device configured "
 		<< " dev fmt " << deviceFormat.toString();
@@ -371,13 +328,6 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
  */
 int ISIPipe::allocateBuffers(unsigned int bufferCount)
 {
-	if (!stateConfigured()) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix()
-			<< "Can't allocate buffers in state " << getState();
-		return -ENODEV;
-	}
-
 	int ret = output_->exportBuffers(bufferCount, &buffers_);
 	if (ret < 0) {
 		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to export buffers";
@@ -394,13 +344,6 @@ int ISIPipe::allocateBuffers(unsigned int bufferCount)
  */
 int ISIPipe::importBuffers(unsigned int bufferCount)
 {
-	if (!stateConfigured()) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix()
-			<< "Can't import buffers in state " << getState();
-		return -ENODEV;
-	}
-
 	int ret = output_->importBuffers(bufferCount);
 	if (ret < 0) {
 		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to import buffers";
@@ -415,13 +358,6 @@ int ISIPipe::importBuffers(unsigned int bufferCount)
  */
 void ISIPipe::freeBuffers()
 {
-	if (!stateConfigured()) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix()
-			<< "Can't deallocate buffers in state " << getState();
-		return;
-	}
-
 	buffers_.clear();
 
 	if (output_->releaseBuffers())

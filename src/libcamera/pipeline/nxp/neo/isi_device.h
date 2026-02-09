@@ -34,17 +34,12 @@ struct StreamConfiguration;
 class ISIPipe
 {
 public:
-	enum {
-		kStateIdle,
-		kStateConfigured,
-		kStateActive,
-	};
-
 	static constexpr unsigned int kUnchainedWidthMax = 2048;
 	static constexpr unsigned int kChainedWidthMax = 4096;
 
 	ISIPipe(unsigned int index)
-		: index_(index), state_(kStateIdle) {}
+		: index_(index) {}
+
 	int init(const MediaDevice *media);
 
 	int exportBuffers(unsigned int count,
@@ -81,17 +76,10 @@ public:
 	std::unique_ptr<V4L2VideoDevice> output_;
 
 private:
-	void setState(unsigned int state) { state_ = state; }
-	unsigned getState() const { return state_; }
-	bool stateIdle() const { return state_ == kStateIdle; }
-	bool stateConfigured() const { return state_ == kStateConfigured; }
-	bool stateActive() const { return state_ == kStateActive; }
-
 	std::vector<std::unique_ptr<FrameBuffer>> buffers_;
 	std::unique_ptr<V4L2Subdevice> pipe_;
 
 	unsigned int index_;
-	unsigned int state_;
 };
 
 class ISIDevice
