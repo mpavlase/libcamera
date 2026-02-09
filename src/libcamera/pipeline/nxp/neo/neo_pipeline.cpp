@@ -356,8 +356,6 @@ private:
 	ModeType mode_ = ModeTypeStandard;
 
 	std::map<BufferType, std::queue<FrameBuffer *>> availableBuffersMap_;
-	std::vector<std::unique_ptr<FrameBuffer>> frameBuffersPool_;
-	std::vector<std::unique_ptr<FrameBuffer>> irBuffersPool_;
 
 	std::unique_ptr<Timer> controlsTimer_;
 };
@@ -2366,9 +2364,6 @@ int NxpNeoCameraData::freeBuffersRaw()
 
 	for (auto [stream, pipe] : pipes_)
 		pipe->freeBuffers();
-
-	frameBuffersPool_.clear();
-	irBuffersPool_.clear();
 
 	return 0;
 }
