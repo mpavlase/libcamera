@@ -56,6 +56,9 @@ public:
 	int start();
 	int stop();
 
+	static void subdeviceName(std::string &name, unsigned int index);
+	static void videoDeviceName(std::string &name, unsigned int index);
+
 	Signal<FrameBuffer *> &bufferReady() { return output_->bufferReady; }
 
 	std::string logPrefix() const
@@ -105,18 +108,8 @@ public:
 	void releasePipe(unsigned int index);
 	ISIPipe *getPipeByIndex(unsigned int index);
 
-	static std::string kDriverName() { return "mxc-isi"; }
-	static std::string kSDevCrossBarEntityName() { return "crossbar"; }
-
-	static std::string kSDevPipeEntityName(unsigned int i)
-	{
-		return "mxc_isi." + std::to_string(i);
-	}
-
-	static std::string kVDevPipeEntityName(unsigned int i)
-	{
-		return "mxc_isi." + std::to_string(i) + ".capture";
-	}
+	static const std::string &driverName();
+	static const std::string &crossbarSubdevName();
 
 	V4L2Subdevice *crossbar() const { return crossbar_.get(); }
 	unsigned int crossbarFirstSourcePad() const { return xbarSinkPads_; }

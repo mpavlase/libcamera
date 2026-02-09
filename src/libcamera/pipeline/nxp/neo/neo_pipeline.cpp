@@ -1231,10 +1231,14 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 	 * Prerequisite for pipeline operation is that frontend media controller
 	 * device is present.
 	 */
-	DeviceMatch isi(ISIDevice::kDriverName());
-	isi.add(ISIDevice::kSDevCrossBarEntityName());
-	isi.add(ISIDevice::kSDevPipeEntityName(0));
-	isi.add(ISIDevice::kVDevPipeEntityName(0));
+	DeviceMatch isi(ISIDevice::driverName());
+	isi.add(ISIDevice::crossbarSubdevName());
+	std::string pipe0Subdevice;
+	ISIPipe::subdeviceName(pipe0Subdevice, 0);
+	isi.add(pipe0Subdevice);
+	std::string pipe0Video;
+	ISIPipe::videoDeviceName(pipe0Video, 0);
+	isi.add(pipe0Video);
 
 	isiMedia_ = acquireMediaDevice(enumerator, isi);
 	if (!isiMedia_)

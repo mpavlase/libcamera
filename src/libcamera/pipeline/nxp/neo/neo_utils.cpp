@@ -490,7 +490,7 @@ int PipelineConfig::loadAutoDetectCameraStream(unsigned int pipe,
 
 	MediaDevice *media = isiDevice_->media();
 	MediaEntity *crossbarEntity =
-		media->getEntityByName(isiDevice_->kSDevCrossBarEntityName());
+		media->getEntityByName(ISIDevice::crossbarSubdevName());
 	if (!crossbarEntity) {
 		LOG(NxpNeoPipe, Error) << "Crossbar not found";
 		return -EINVAL;
@@ -512,8 +512,9 @@ int PipelineConfig::loadAutoDetectCameraStream(unsigned int pipe,
 
 	/* Discover path from crossbar to pipe video node */
 	std::vector<std::vector<MediaLink *>> pipePaths;
-	MediaEntity *pipeEntity =
-		media->getEntityByName(isiDevice_->kVDevPipeEntityName(pipe));
+	std::string pipeName;
+	ISIPipe::videoDeviceName(pipeName, pipe);
+	MediaEntity *pipeEntity = media->getEntityByName(pipeName);
 	if (!pipeEntity)
 		return -EINVAL;
 	unsigned int crossbarSource =
@@ -793,7 +794,7 @@ int PipelineConfig::loadAutoDetectMultiCamera()
 	/* Record ISI crossbar sink for every camera */
 	MediaDevice *media = isiDevice_->media();
 	MediaEntity *crossbarEntity =
-		media->getEntityByName(isiDevice_->kSDevCrossBarEntityName());
+		media->getEntityByName(ISIDevice::crossbarSubdevName());
 	std::map<std::string, unsigned int> cameraXbarSink;
 	for (auto &[name, cameraInfo] : cameraMap_) {
 		const CameraMediaStream *cameraStream =

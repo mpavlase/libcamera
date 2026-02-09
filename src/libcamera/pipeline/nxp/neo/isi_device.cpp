@@ -120,7 +120,8 @@ int ISIPipe::init(const MediaDevice *media)
 {
 	int ret;
 
-	std::string subDevEntityName = ISIDevice::kSDevPipeEntityName(index_);
+	std::string subDevEntityName;
+	subdeviceName(subDevEntityName, index_);
 	pipe_ = V4L2Subdevice::fromEntityName(media, subDevEntityName);
 	if (!pipe_)
 		return -ENODEV;
@@ -129,7 +130,8 @@ int ISIPipe::init(const MediaDevice *media)
 	if (ret)
 		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "failed to open subdev";
 
-	std::string videoDevEntityName = ISIDevice::kVDevPipeEntityName(index_);
+	std::string videoDevEntityName;
+	videoDeviceName(videoDevEntityName, index_);
 	output_ = V4L2VideoDevice::fromEntityName(media, videoDevEntityName);
 	if (!output_)
 		return -ENODEV;
@@ -203,6 +205,35 @@ int ISIPipe::stop()
 	setState(kStateConfigured);
 
 	return ret;
+}
+
+/**
+ * \brief Generate the ISI pipe subdevice entity name for a given index
+ * \param[out] name The generated subdevice entity name
+ * \param[in] index The pipe index
+ *
+ * Constructs the subdevice entity name by combining the prefix "mxc_isi."
+ * with the provided pipe index.
+ */
+void ISIPipe::subdeviceName(std::string &name, unsigned int index)
+{
+	static const std::string kSDeviceEntityPrefix = "mxc_isi.";
+	name = kSDeviceEntityPrefix + std::to_string(index);
+}
+
+/**
+ * \brief Generate the ISI pipe video device entity name for a given index
+ * \param[out] name The generated video device entity name
+ * \param[in] index The pipe index
+ *
+ * Constructs the video device entity name by combining the prefix "mxc_isi."
+ * with the provided pipe index and the suffix ".capture".
+ */
+void ISIPipe::videoDeviceName(std::string &name, unsigned int index)
+{
+	static const std::string kVDeviceEntityPrefix = "mxc_isi.";
+	static const std::string kVDeviceEntitySuffix = ".capture";
+	name = kVDeviceEntityPrefix + std::to_string(index) + kVDeviceEntitySuffix;
 }
 
 /**
@@ -510,8 +541,7 @@ int ISIDevice::init(MediaDevice *media)
 
 	media_ = media;
 
-	crossbar_ = V4L2Subdevice::fromEntityName(
-		media, kSDevCrossBarEntityName());
+	crossbar_ = V4L2Subdevice::fromEntityName(media, crossbarSubdevName());
 	if (!crossbar_)
 		return -ENODEV;
 	ret = crossbar_->open();
@@ -716,6 +746,34 @@ ISIPipe *ISIDevice::getPipeByIndex(unsigned int index)
 	}
 
 	return &pipeEntries_[index].pipe_;
+}
+
+/**
+ * \brief Get the ISI driver name
+ *
+ * Returns the name of the ISI driver used to identify the device in the media
+ * controller framework.
+ *
+ * \return The ISI driver name string ("mxc-isi")
+ */
+const std::string &ISIDevice::driverName()
+{
+	static const std::string driverName = "mxc-isi";
+	return driverName;
+}
+
+/**
+ * \brief Get the ISI crossbar subdevice name
+ *
+ * Returns the name of the ISI crossbar subdevice used to identify the device
+ * in the media controller framework.
+ *
+ * \return The ISI crossbar subdevice name string ("crossbar")
+ */
+const std::string &ISIDevice::crossbarSubdevName()
+{
+	static const std::string crossbarName = "crossbar";
+	return crossbarName;
 }
 
 } /* namespace libcamera */
