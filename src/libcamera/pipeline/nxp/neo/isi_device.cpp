@@ -105,6 +105,9 @@ const std::map<V4L2PixelFormat, uint32_t> processedFormatsMap = {
  * \param[in] media The ISI media device
  *
  * Create and open the video device and subdevice of the ISI pipe channel.
+ * This function locates the subdevice and video device entities by name,
+ * creates the corresponding V4L2Subdevice and V4L2VideoDevice instances,
+ * and opens them for use.
  *
  * \return 0 on success or a negative error code otherwise
  */
@@ -139,6 +142,10 @@ int ISIPipe::init(const MediaDevice *media)
 
 /**
  * \brief Start the ISI channel capture video device
+ *
+ * Initiates streaming on the ISI pipe's capture video device by calling
+ * streamOn(). This enables the video device to begin capturing frames.
+ *
  * \return 0 on success or a negative error code otherwise
  */
 int ISIPipe::start()
@@ -154,6 +161,10 @@ int ISIPipe::start()
 
 /**
  * \brief Stop the ISI channel capture video device
+ *
+ * Stops streaming on the ISI pipe's capture video device by calling
+ * streamOff(). This disables the video device from capturing frames.
+ *
  * \return 0 on success or a negative error code otherwise
  */
 int ISIPipe::stop()
@@ -199,15 +210,23 @@ void ISIPipe::videoDeviceName(std::string &name, unsigned int index)
 /**
  * \brief Configure the ISI channel subdevice and video node formats
  * \param[inout] sinkFormat The format applied to the subdevice sink pad
- * \param[inout] videoFormat The format applied to the video device
+ * \param[inout] deviceFormat The format applied to the video device
  *
  * This function configures ISI pipe formats: the subdevice sink and source
  * pads, and its capture video device.
+ *
  * In channel bypass mode (bayer or meta), the subdevice sink and source formats
  * are the same and the function infers both the subdevice source and the video
  * device formats from the subdevice sink format.
+ *
  * In processed mode, the subdevice source format differs from the sink, and is
  * inferred from the video device format.
+ *
+ * The function validates the input formats against the supported format maps
+ * (bayerFormatsMap, metaFormatsMap, or processedFormatsMap) and configures:
+ * - The subdevice sink pad (pad 0)
+ * - The subdevice source pad (pad 1)
+ * - The capture video device
  *
  * \return 0 on success or a negative error code otherwise
  */
@@ -318,6 +337,11 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
 /**
  * \brief Allocate buffers for ISI channel
  * \param[in] bufferCount The number of buffers to allocate
+ *
+ * Allocates and exports buffers from the ISI pipe's capture video device,
+ * and prepare the buffer management for import. The allocated buffers are
+ * stored in the captureBuffers_ member for later use.
+ *
  * \return 0 on success or a negative error code otherwise
  */
 int ISIPipe::allocateBuffers(unsigned int bufferCount)
@@ -335,6 +359,10 @@ int ISIPipe::allocateBuffers(unsigned int bufferCount)
 /**
  * \brief Import buffers for ISI channel
  * \param[in] bufferCount The number of buffers to import
+ *
+ * Prepare the buffer management to import some buffers that have been allocated
+ * by some dmabuf provider.
+ *
  * \return 0 on success or a negative error code otherwise
  */
 int ISIPipe::importBuffers(unsigned int bufferCount)
@@ -350,7 +378,14 @@ int ISIPipe::importBuffers(unsigned int bufferCount)
 }
 
 /**
- * \brief Release the pool of preallocated buffers created by allocateBuffers()
+ * \brief Release resources allocated by allocateBuffers() or importBuffers
+ *
+ * Releases all buffers that were previously allocated or imported for the ISI
+ * pipe's capture video device. This function clears the internal buffer storage
+ * (captureBuffers_) and releases the buffers from the V4L2 video device.
+ *
+ * This function should be called to clean up resources when the ISI pipe is no
+ * longer in use or when reconfiguring the buffer pool.
  */
 void ISIPipe::freeBuffers()
 {
