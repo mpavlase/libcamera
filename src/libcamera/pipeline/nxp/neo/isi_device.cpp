@@ -132,27 +132,15 @@ int ISIPipe::init(const MediaDevice *media)
 
 	std::string videoDevEntityName;
 	videoDeviceName(videoDevEntityName, index_);
-	output_ = V4L2VideoDevice::fromEntityName(media, videoDevEntityName);
-	if (!output_)
+	capture_ = V4L2VideoDevice::fromEntityName(media, videoDevEntityName);
+	if (!capture_)
 		return -ENODEV;
 
-	ret = output_->open();
+	ret = capture_->open();
 	if (ret)
 		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "failed to open videodev";
 
 	return ret;
-}
-
-/**
- * \brief Create and export \a count buffers from ISI channel capture video device
- * \param[in] count The number of buffers to export
- * \param[out] buffers Vector of allocated buffers
- * \return 0 on success or a negative error code otherwise
- */
-int ISIPipe::exportBuffers(unsigned int count,
-			   std::vector<std::unique_ptr<FrameBuffer>> *buffers)
-{
-	return output_->exportBuffers(count, buffers);
 }
 
 /**
@@ -161,7 +149,7 @@ int ISIPipe::exportBuffers(unsigned int count,
  */
 int ISIPipe::start()
 {
-	return output_->streamOn();
+	return capture_->streamOn();
 }
 
 /**
@@ -170,7 +158,7 @@ int ISIPipe::start()
  */
 int ISIPipe::stop()
 {
-	return output_->streamOff();
+	return capture_->streamOff();
 }
 
 /**
@@ -306,7 +294,7 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
 		return ret;
 	}
 
-	ret = output_->setFormat(&deviceFormat);
+	ret = capture_->setFormat(&deviceFormat);
 	if (ret) {
 		LOG(NxpNeoIsiDev, Error)
 			<< logPrefix()
@@ -328,7 +316,7 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
  */
 int ISIPipe::allocateBuffers(unsigned int bufferCount)
 {
-	int ret = output_->exportBuffers(bufferCount, &buffers_);
+	int ret = capture_->exportBuffers(bufferCount, &captureBuffers_);
 	if (ret < 0) {
 		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to export buffers";
 		return ret;
@@ -344,7 +332,7 @@ int ISIPipe::allocateBuffers(unsigned int bufferCount)
  */
 int ISIPipe::importBuffers(unsigned int bufferCount)
 {
-	int ret = output_->importBuffers(bufferCount);
+	int ret = capture_->importBuffers(bufferCount);
 	if (ret < 0) {
 		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to import buffers";
 		freeBuffers();
@@ -358,9 +346,9 @@ int ISIPipe::importBuffers(unsigned int bufferCount)
  */
 void ISIPipe::freeBuffers()
 {
-	buffers_.clear();
+	captureBuffers_.clear();
 
-	if (output_->releaseBuffers())
+	if (capture_->releaseBuffers())
 		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to free buffers";
 }
 

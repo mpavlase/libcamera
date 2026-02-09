@@ -1152,7 +1152,7 @@ CameraConfiguration::Status NxpNeoCameraConfiguration::validateYuv()
 
 	/* Acquire stride and color space from the pipe device */
 	std::map<StreamType, ISIPipe *> pipes = data_->isiPipes();
-	V4L2VideoDevice *pipeDevice = pipes[StreamTypeImage0]->output_.get();
+	V4L2VideoDevice *pipeDevice = pipes.at(StreamTypeImage0)->capture_.get();
 	V4L2DeviceFormat devFormat = {};
 	devFormat.size = cfg.size;
 	devFormat.fourcc = pipeDevice->toV4L2PixelFormat(cfg.pixelFormat);
@@ -1722,7 +1722,8 @@ int NxpNeoCameraData::exportFrameBuffers(Stream *stream,
 		NeoDevice *neo = mode_ != ModeTypeRgbIrDual ? neoRgb : neoIr;
 		return neo->ir_->exportBuffers(count, buffers);
 	} else if (stream == &streamRaw_) {
-		return pipes_[StreamTypeImage0]->exportBuffers(count, buffers);
+		ISIPipe *pipe = pipes_.at(StreamTypeImage0);
+		return pipe->capture_->exportBuffers(count, buffers);
 	}
 
 	return -EINVAL;
@@ -1848,7 +1849,7 @@ int NxpNeoCameraData::queueRequestDevice(Request *request)
 
 	for (const auto &[context, infoContext] : info->contexts_) {
 		for (auto [stream, pipe] : pipes_) {
-			V4L2VideoDevice *dev = pipe->output_.get();
+			V4L2VideoDevice *dev = pipe->capture_.get();
 			BufferType bufferType = streamToBufferType.at(stream);
 			FrameBuffer *buffer = infoContext.buffer(bufferType);
 			if (!buffer)
@@ -1996,11 +1997,12 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 		if (!cameraMediaStream)
 			continue;
 		unsigned int pipeIndex = cameraMediaStream->pipe();
-		pipes_[stream] = isi->getPipeByIndex(pipeIndex);
-
+		ISIPipe *pipe = isi->getPipeByIndex(pipeIndex);
+		pipes_.emplace(stream, pipe);
 		auto it = pipeReadyFuncs.find(stream);
 		ASSERT(it != pipeReadyFuncs.end());
-		pipes_[stream]->bufferReady().connect(this, it->second);
+		const auto &[_ignored, slot] = *it;
+		pipe->capture_->bufferReady.connect(this, slot);
 	}
 
 	for (auto &[context, neo] : neoDevices_) {
@@ -2306,7 +2308,7 @@ int NxpNeoCameraData::allocateBuffersRaw()
 		ret |= pipe->allocateBuffers(count);
 
 		BufferType bufferType = streamToBufferType.at(stream);
-		registerPoolBuffers(&pipe->buffers(), bufferType);
+		registerPoolBuffers(&pipe->captureBuffers_, bufferType);
 	}
 
 	if (ret) {
@@ -2711,7 +2713,7 @@ int NxpNeoCameraData::configureYuv(CameraConfiguration *c)
 
 	V4L2SubdeviceFormat &subdevFormat = pipesSubDevFormats_[StreamTypeImage0];
 	V4L2DeviceFormat deviceFormat = {};
-	V4L2VideoDevice *videoDevice = pipe->output_.get();
+	V4L2VideoDevice *videoDevice = pipe->capture_.get();
 	deviceFormat.fourcc =
 		videoDevice->toV4L2PixelFormat(streamConfig.pixelFormat);
 	deviceFormat.size = streamConfig.size;

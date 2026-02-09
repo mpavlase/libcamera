@@ -42,9 +42,6 @@ public:
 
 	int init(const MediaDevice *media);
 
-	int exportBuffers(unsigned int count,
-			  std::vector<std::unique_ptr<FrameBuffer>> *buffers);
-
 	int configure(V4L2SubdeviceFormat &sinkFormat,
 		      V4L2DeviceFormat &videoFormat);
 
@@ -54,17 +51,13 @@ public:
 	static void subdeviceName(std::string &name, unsigned int index);
 	static void videoDeviceName(std::string &name, unsigned int index);
 
-	Signal<FrameBuffer *> &bufferReady() { return output_->bufferReady; }
-
 	std::string logPrefix() const
 	{
 		return "Pipe[" + std::to_string(index_) + "] ";
 	}
 
-	unsigned int index() const { return index_; }
 	int allocateBuffers(unsigned int bufferCount);
 	int importBuffers(unsigned int bufferCount);
-	std::vector<std::unique_ptr<FrameBuffer>> &buffers() { return buffers_; }
 	void freeBuffers();
 
 	static const std::vector<uint32_t> &bayerMbusCodes();
@@ -73,10 +66,10 @@ public:
 	static const std::vector<PixelFormat> &pixelFormatsProcessed();
 	static const V4L2PixelFormat mbusCodeToPixelFormatBypass(unsigned int code);
 
-	std::unique_ptr<V4L2VideoDevice> output_;
+	std::unique_ptr<V4L2VideoDevice> capture_;
+	std::vector<std::unique_ptr<FrameBuffer>> captureBuffers_;
 
 private:
-	std::vector<std::unique_ptr<FrameBuffer>> buffers_;
 	std::unique_ptr<V4L2Subdevice> pipe_;
 
 	unsigned int index_;
