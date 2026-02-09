@@ -120,6 +120,8 @@ int ISIPipe::init(const MediaDevice *media)
 {
 	int ret;
 
+	LOG(NxpNeoIsiDev, Debug) << "Init pipe index " << index_;
+
 	std::string subDevEntityName;
 	subdeviceName(subDevEntityName, index_);
 	pipe_ = V4L2Subdevice::fromEntityName(media, subDevEntityName);
@@ -128,7 +130,7 @@ int ISIPipe::init(const MediaDevice *media)
 
 	ret = pipe_->open();
 	if (ret)
-		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "failed to open subdev";
+		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Failed to open subdev";
 
 	std::string videoDevEntityName;
 	videoDeviceName(videoDevEntityName, index_);
@@ -138,7 +140,7 @@ int ISIPipe::init(const MediaDevice *media)
 
 	ret = capture_->open();
 	if (ret)
-		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "failed to open videodev";
+		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Failed to open videodev";
 
 	return ret;
 }
@@ -149,7 +151,13 @@ int ISIPipe::init(const MediaDevice *media)
  */
 int ISIPipe::start()
 {
-	return capture_->streamOn();
+	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Start";
+	int ret = capture_->streamOn();
+	if (ret) {
+		LOG(NxpNeoIsiDev, Error)
+			<< logPrefix() << "Failed to start";
+	}
+	return ret;
 }
 
 /**
@@ -158,7 +166,13 @@ int ISIPipe::start()
  */
 int ISIPipe::stop()
 {
-	return capture_->streamOff();
+	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Stop";
+	int ret = capture_->streamOff();
+	if (ret) {
+		LOG(NxpNeoIsiDev, Error)
+			<< logPrefix() << "Failed to stop";
+	}
+	return ret;
 }
 
 /**
@@ -303,8 +317,8 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
 	}
 
 	LOG(NxpNeoIsiDev, Debug)
-		<< logPrefix() << " Video device configured "
-		<< " dev fmt " << deviceFormat.toString();
+		<< logPrefix() << "Video device configured dev fmt "
+		<< deviceFormat.toString();
 
 	return 0;
 }
@@ -316,6 +330,7 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
  */
 int ISIPipe::allocateBuffers(unsigned int bufferCount)
 {
+	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Allocate buffers " << bufferCount;
 	int ret = capture_->exportBuffers(bufferCount, &captureBuffers_);
 	if (ret < 0) {
 		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to export buffers";
@@ -332,6 +347,7 @@ int ISIPipe::allocateBuffers(unsigned int bufferCount)
  */
 int ISIPipe::importBuffers(unsigned int bufferCount)
 {
+	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Import buffers " << bufferCount;
 	int ret = capture_->importBuffers(bufferCount);
 	if (ret < 0) {
 		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to import buffers";
@@ -346,6 +362,7 @@ int ISIPipe::importBuffers(unsigned int bufferCount)
  */
 void ISIPipe::freeBuffers()
 {
+	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Free buffers";
 	captureBuffers_.clear();
 
 	if (capture_->releaseBuffers())

@@ -51,11 +51,6 @@ public:
 	static void subdeviceName(std::string &name, unsigned int index);
 	static void videoDeviceName(std::string &name, unsigned int index);
 
-	std::string logPrefix() const
-	{
-		return "Pipe[" + std::to_string(index_) + "] ";
-	}
-
 	int allocateBuffers(unsigned int bufferCount);
 	int importBuffers(unsigned int bufferCount);
 	void freeBuffers();
@@ -70,8 +65,12 @@ public:
 	std::vector<std::unique_ptr<FrameBuffer>> captureBuffers_;
 
 private:
-	std::unique_ptr<V4L2Subdevice> pipe_;
+	std::string logPrefix() const
+	{
+		return "Pipe[" + capture_->deviceNode() + "] ";
+	}
 
+	std::unique_ptr<V4L2Subdevice> pipe_;
 	unsigned int index_;
 };
 
