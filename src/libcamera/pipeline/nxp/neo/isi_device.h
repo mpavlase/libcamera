@@ -11,25 +11,17 @@
 
 #pragma once
 
-#include <memory>
-#include <queue>
 #include <vector>
-
-#include <libcamera/base/signal.h>
 
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
 namespace libcamera {
 
-class CameraSensor;
 class FrameBuffer;
 class MediaDevice;
 class PixelFormat;
-class Request;
 class Size;
-class SizeRange;
-struct StreamConfiguration;
 
 class ISIPipe
 {

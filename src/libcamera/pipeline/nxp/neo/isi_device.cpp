@@ -13,14 +13,6 @@
 
 #include <linux/media-bus-format.h>
 
-#include <libcamera/base/utils.h>
-
-#include <libcamera/formats.h>
-#include <libcamera/geometry.h>
-#include <libcamera/stream.h>
-#include <libcamera/transform.h>
-
-#include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/v4l2_subdevice.h"
