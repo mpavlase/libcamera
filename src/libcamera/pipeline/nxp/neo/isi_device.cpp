@@ -124,8 +124,10 @@ int ISIPipe::init(const MediaDevice *media)
 		return -ENODEV;
 
 	ret = pipe_->open();
-	if (ret)
-		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Failed to open subdev";
+	if (ret) {
+		LOG(NxpNeoIsiDev, Error) << logPrefix() << "Failed to open subdev";
+		return ret;
+	}
 
 	std::string videoDevEntityName;
 	videoDeviceName(videoDevEntityName, index_);
@@ -135,7 +137,7 @@ int ISIPipe::init(const MediaDevice *media)
 
 	ret = capture_->open();
 	if (ret)
-		LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Failed to open videodev";
+		LOG(NxpNeoIsiDev, Error) << logPrefix() << "Failed to open videodev";
 
 	return ret;
 }
@@ -495,13 +497,19 @@ const V4L2PixelFormat ISIPipe::mbusCodeToPixelFormatBypass(unsigned int code)
  */
 
 /**
- * \brief ISI device capabilities discovery from a \a media device
- * \param[in] media The media device embedding the ISI entity
+ * \brief Initialize the ISI device and discover its capabilities
+ * \param[in] media The media device containing the ISI entities
  *
- * Examines the ISI device entities to discover and initialize the associated
- * channels.
+ * This function initializes the ISI device by discovering and configuring its
+ * components from the provided media device.
  *
- * \return 0 in case of success, or a negative error value
+ * The crossbar sink pads represent the input interfaces to the ISI device,
+ * while the remaining pads correspond to the ISI processing pipes. Each pipe
+ * is initialized and stored for later use.
+ *
+ * \return 0 on success, -ENODEV if the crossbar subdevice is not found, if no
+ * sink pads are detected, if pipe enumeration fails, or a negative error code
+ * if opening the crossbar or initializing pipes fails
  */
 int ISIDevice::init(MediaDevice *media)
 {
@@ -535,10 +543,13 @@ int ISIDevice::init(MediaDevice *media)
 	/*
 	 * Discover the number of ISI pipes
 	 */
-	for (unsigned int i = 0;; ++i) {
+	unsigned int pipeCount =
+		crossbar_->entity()->pads().size() - xbarSinkPads_;
+	pipeEntries_.reserve(pipeCount);
+	for (unsigned int i = 0; i < pipeCount; ++i) {
 		PipeWrapper wrapper(i);
 		if (wrapper.pipe.init(media))
-			break;
+			return -ENODEV;
 		pipeEntries_.push_back(std::move(wrapper));
 	}
 

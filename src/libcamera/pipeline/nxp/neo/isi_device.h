@@ -71,8 +71,6 @@ class ISIDevice
 public:
 	ISIDevice() {}
 
-	static constexpr unsigned int kPipesMax = 16;
-
 	int init(MediaDevice *media);
 
 	int reservePipeBySize(Size &sizeMax, unsigned int *index);
