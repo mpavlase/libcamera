@@ -537,7 +537,7 @@ int ISIDevice::init(MediaDevice *media)
 	 */
 	for (unsigned int i = 0;; ++i) {
 		PipeWrapper wrapper(i);
-		if (wrapper.pipe_.init(media))
+		if (wrapper.pipe.init(media))
 			break;
 		pipeEntries_.push_back(std::move(wrapper));
 	}
@@ -713,7 +713,7 @@ ISIPipe *ISIDevice::getPipeByIndex(unsigned int index)
 		return nullptr;
 	}
 
-	return &pipeEntries_[index].pipe_;
+	return &pipeEntries_[index].pipe;
 }
 
 /**
