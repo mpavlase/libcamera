@@ -1817,13 +1817,11 @@ void NxpNeoCameraData::stopDevice()
 	 */
 	while (!queuedRequests_.empty()) {
 		Request *request = queuedRequests_.front();
-		queuedRequests_.pop_front();
 		NxpNeoFrames::Info *frameInfo = frameInfos_.find(request);
 		ASSERT(frameInfo);
 		cancelCompleteRequest(frameInfo);
 	}
 
-	ASSERT(queuedRequests_.empty());
 	frameInfos_.clear();
 
 	freeBuffers();
