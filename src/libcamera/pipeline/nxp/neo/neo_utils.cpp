@@ -261,7 +261,7 @@ int PipelineConfig::loadAutoDetect()
 {
 	int ret;
 
-	MediaDevice *media = isiDevice_->media();
+	MediaDevice *media = isiDevice_->media_;
 	if (!media)
 		return -EINVAL;
 
@@ -488,7 +488,7 @@ int PipelineConfig::loadAutoDetectCameraStream(unsigned int pipe,
 {
 	int ret;
 
-	MediaDevice *media = isiDevice_->media();
+	MediaDevice *media = isiDevice_->media_;
 	MediaEntity *crossbarEntity =
 		media->getEntityByName(ISIDevice::crossbarSubdevName());
 	if (!crossbarEntity) {
@@ -792,7 +792,7 @@ int PipelineConfig::loadAutoDetectAddRoute(MediaEntity *entity,
 int PipelineConfig::loadAutoDetectMultiCamera()
 {
 	/* Record ISI crossbar sink for every camera */
-	MediaDevice *media = isiDevice_->media();
+	MediaDevice *media = isiDevice_->media_;
 	MediaEntity *crossbarEntity =
 		media->getEntityByName(ISIDevice::crossbarSubdevName());
 	std::map<std::string, unsigned int> cameraXbarSink;

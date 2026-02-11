@@ -1583,7 +1583,7 @@ int PipelineHandlerNxpNeo::setupRouting() const
 			<< " routing " << routing;
 
 		std::unique_ptr<V4L2Subdevice> sdev =
-			V4L2Subdevice::fromEntityName(isiDevice()->media(), name);
+			V4L2Subdevice::fromEntityName(isiDevice()->media_, name);
 		if (!sdev.get()) {
 			LOG(NxpNeoPipe, Error) << "Subdevice does not exist " << name;
 			return -EINVAL;
@@ -2390,7 +2390,7 @@ int NxpNeoCameraData::configureFrontEndStream(
 	const std::vector<CameraMediaStream::StreamLink> &streamLinks,
 	V4L2SubdeviceFormat &sdFormat)
 {
-	const MediaDevice *media = pipe()->isiDevice()->media();
+	const MediaDevice *media = pipe()->isiDevice()->media_;
 	std::unique_ptr<V4L2Subdevice> subDev;
 	int ret = 0;
 

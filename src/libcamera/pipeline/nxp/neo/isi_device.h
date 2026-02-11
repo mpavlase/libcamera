@@ -81,10 +81,10 @@ public:
 	static const std::string &driverName();
 	static const std::string &crossbarSubdevName();
 
-	V4L2Subdevice *crossbar() const { return crossbar_.get(); }
 	unsigned int crossbarFirstSourcePad() const { return xbarSinkPads_; }
 	unsigned int crossbarSourcePads() const { return pipeEntries_.size(); }
-	MediaDevice *media() const { return media_; }
+
+	MediaDevice *media_ = nullptr;
 
 private:
 	struct PipeWrapper {
@@ -98,7 +98,6 @@ private:
 	std::vector<PipeWrapper> pipeEntries_;
 	std::unique_ptr<V4L2Subdevice> crossbar_;
 	unsigned int xbarSinkPads_ = 0;
-	MediaDevice *media_ = nullptr;
 };
 
 } /* namespace libcamera */
