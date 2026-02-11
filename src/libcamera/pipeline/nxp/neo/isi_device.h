@@ -21,7 +21,6 @@ namespace libcamera {
 class FrameBuffer;
 class MediaDevice;
 class PixelFormat;
-class Size;
 
 class ISIPipe
 {
@@ -55,6 +54,7 @@ public:
 
 	std::unique_ptr<V4L2VideoDevice> capture_;
 	std::vector<std::unique_ptr<FrameBuffer>> captureBuffers_;
+	unsigned int index_;
 
 private:
 	std::string logPrefix() const
@@ -63,7 +63,6 @@ private:
 	}
 
 	std::unique_ptr<V4L2Subdevice> pipe_;
-	unsigned int index_;
 };
 
 class ISIDevice
@@ -73,10 +72,8 @@ public:
 
 	int init(MediaDevice *media);
 
-	int reservePipeBySize(Size &sizeMax, unsigned int *index);
-	int reservePipeByIndex(Size &sizeMax, unsigned int index);
-	void releasePipe(unsigned int index);
-	ISIPipe *getPipeByIndex(unsigned int index);
+	ISIPipe *reservePipe(unsigned int width);
+	void releasePipe(ISIPipe *pipe);
 
 	static const std::string &driverName();
 	static const std::string &crossbarSubdevName();

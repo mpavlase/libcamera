@@ -1989,13 +1989,11 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 		{ StreamTypeEData, &NxpNeoCameraData::isiEmbeddedDataBufferReady },
 	};
 
-	ISIDevice *isi = pipe()->isiDevice();
 	for (StreamType stream : kStreamTypes) {
 		const CameraMediaStream *cameraMediaStream = cameraInfo_->stream(stream);
 		if (!cameraMediaStream)
 			continue;
-		unsigned int pipeIndex = cameraMediaStream->pipe();
-		ISIPipe *pipe = isi->getPipeByIndex(pipeIndex);
+		ISIPipe *pipe = cameraMediaStream->pipe();
 		pipes_.emplace(stream, pipe);
 		auto it = pipeReadyFuncs.find(stream);
 		ASSERT(it != pipeReadyFuncs.end());

@@ -44,17 +44,17 @@ public:
 	};
 
 	CameraMediaStream() {}
-	CameraMediaStream(std::vector<StreamLink> &links, unsigned int pipe)
+	CameraMediaStream(std::vector<StreamLink> &links, ISIPipe *pipe)
 		: streamLinks_(links), isiPipe_(pipe) {}
 	virtual ~CameraMediaStream() {}
 
 	const std::vector<StreamLink> &streamLinks() const { return streamLinks_; }
-	unsigned int pipe() const { return isiPipe_; }
+	ISIPipe *pipe() const { return isiPipe_; }
 	std::string toString() const;
 
 private:
 	std::vector<StreamLink> streamLinks_;
-	unsigned int isiPipe_ = 0;
+	ISIPipe *isiPipe_ = nullptr;
 };
 
 struct CameraProperties {
@@ -120,7 +120,7 @@ private:
 		std::numeric_limits<unsigned int>::max();
 
 	int loadAutoDetect();
-	int loadAutoDetectCameraStream(unsigned int pipe,
+	int loadAutoDetectCameraStream(ISIPipe *isiPipe,
 				       MediaEntity *sensorEntity,
 				       unsigned int sensorPad,
 				       unsigned int sensorStream,

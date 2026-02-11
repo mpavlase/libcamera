@@ -564,167 +564,110 @@ int ISIDevice::init(MediaDevice *media)
 }
 
 /**
- * \brief Reserve an ISI pipe based on its image size usage
- * \param[in] sizeMax The size of the image
- * \param[out] index The pipe channel index reserved
+ * \brief Reserve an ISI pipe based on image width requirements
+ * \param[in] width The width of the image in pixels
  *
- * Reserve the necessary number of ISI channels given the image size.
- * Above a certain width, a second adjacent channel has to be reserved
- * in order to chain the 2 channel buffers.
- * Only the first channel index is reported, as the chaining remains internal to
- * the ISI device. However, the chained channel buffer is marked as reserved as
- * it can no longer be used.
+ * Reserve the necessary number of ISI channels given the image width.
+ * Above a certain width threshold, a second adjacent channel must be reserved
+ * to chain the two channel buffers together.
  *
- * \return 0 on success, or a negative error code otherwise
+ * Only a pointer to the first channel's ISIPipe is returned, as the chaining
+ * remains internal to the ISI device. However, the chained channel is marked
+ * as reserved and cannot be used independently.
+ *
+ * \return A pointer to the reserved ISIPipe on success, or nullptr on failure
  */
-int ISIDevice::reservePipeBySize(Size &sizeMax, unsigned int *index)
+ISIPipe *ISIDevice::reservePipe(unsigned int width)
 {
-	*index = std::numeric_limits<unsigned int>::max();
 	bool chained = false;
+	ISIPipe *pipe = nullptr;
 
-	if (sizeMax.width > ISIPipe::kChainedWidthMax) {
+	if (width > ISIPipe::kChainedWidthMax) {
 		LOG(NxpNeoIsiDev, Error)
 			<< "Maximum width " << ISIPipe::kChainedWidthMax
-			<< " exceeded by size " << sizeMax.toString();
-		return -EINVAL;
+			<< " exceeded by width " << width;
+		return nullptr;
 	}
 
-	if (sizeMax.width > ISIPipe::kUnchainedWidthMax)
+	if (width > ISIPipe::kUnchainedWidthMax)
 		chained = true;
 
-	unsigned int pipes = pipeEntries_.size();
-	for (const auto [i, entry] : utils::enumerate(pipeEntries_)) {
-		/* Last pipe can not be chained */
-		if (chained && i + 1 >= pipes)
+	unsigned int pipeCount = pipeEntries_.size();
+	unsigned int index = 0;
+	for (const auto &[i, entry] : utils::enumerate(pipeEntries_)) {
+		if (chained && i + 1 >= pipeCount)
 			break;
-		if (entry.free) {
-			if (!chained || pipeEntries_[i + 1].free) {
-				*index = i;
-				break;
+		if (!entry.free)
+			continue;
+		/* Last pipe can not be chained */
+		if (!chained || (i + 1 < pipeCount && pipeEntries_[i + 1].free)) {
+			entry.free = false;
+			entry.chained = chained;
+			if (chained) {
+				PipeWrapper &next = pipeEntries_[i + 1];
+				next.free = false;
+				next.chained = false;
 			}
+			pipe = &entry.pipe;
+			index = i;
+			break;
 		}
 	}
 
-	/* Available pipe found, mark it as allocated */
-	bool found = *index < pipes;
-	if (found) {
-		pipeEntries_[*index].free = false;
-		if (chained) {
-			pipeEntries_[*index].chained = true;
-			pipeEntries_[*index + 1].free = false;
-		} else {
-			pipeEntries_[*index].chained = false;
-		}
-	}
-
-	return found ? 0 : -EBUSY;
-}
-
-/**
- * \brief Reserve an ISI pipe based on its index
- * \param[in] sizeMax The size of the image
- * \param[out] index The pipe channel index to be reserved
- *
- * Reserve the necessary number of ISI channels given the provided channel
- * index. This variant of ISI pipe reservation is to be used when the caller
- * needs to explicitly select the channels to be reserved.
- *
- * \return 0 on success, or a negative error code otherwise
- */
-int ISIDevice::reservePipeByIndex(Size &sizeMax, unsigned int index)
-{
-	bool chained = false;
-
-	unsigned int pipes = pipeEntries_.size();
-	if (index >= pipes) {
-		LOG(NxpNeoIsiDev, Error)
-			<< "Invalid pipe index " << index
-			<< " max " << pipes;
-		return -EINVAL;
-	}
-
-	if (!pipeEntries_[index].free) {
-		LOG(NxpNeoIsiDev, Error)
-			<< "Pipe index " << index << " already allocated";
-		return -EBUSY;
-	}
-
-	if (sizeMax.width > ISIPipe::kUnchainedWidthMax)
-		chained = true;
-
-	if (chained && (index + 1 >= pipes ||
-			!pipeEntries_[index + 1].free)) {
-		LOG(NxpNeoIsiDev, Error)
-			<< "Pipe index " << index << " can't be chained";
-		return -EINVAL;
-	}
-
-	pipeEntries_[index].free = false;
-	if (chained) {
-		pipeEntries_[index].chained = true;
-		pipeEntries_[index + 1].free = false;
+	if (pipe) {
+		LOG(NxpNeoIsiDev, Debug)
+			<< "Reserved pipe index " << index
+			<< " width " << width << " chained " << chained;
 	} else {
-		pipeEntries_[index].chained = false;
+		LOG(NxpNeoIsiDev, Error)
+			<< "Unable to reserve pipe for size " << width;
 	}
 
-	return 0;
+	return pipe;
 }
 
 /**
- * \brief Release previously reserved ISI pipe
- * \param[out] index The first channel index reserved
- * \return 0 on success, or a negative error code otherwise
+ * \brief Release a previously reserved ISI pipe
+ * \param[in] pipe Pointer to the ISIPipe to release
+ *
+ * Releases the specified ISI pipe and marks it as available for future use.
+ * If the pipe was part of a chained configuration, both the primary and
+ * secondary (chained) pipes are released.
+ *
+ * Error messages are logged if the pipe is invalid or already freed.
  */
-void ISIDevice::releasePipe(unsigned int index)
+void ISIDevice::releasePipe(ISIPipe *pipe)
 {
-	unsigned int pipes = pipeEntries_.size();
-	if (index >= pipes) {
-		LOG(NxpNeoIsiDev, Error)
-			<< "Invalid pipe index " << index
-			<< " max " << pipes;
+	auto it = std::find_if(pipeEntries_.begin(), pipeEntries_.end(),
+			       [pipe](const PipeWrapper &entry) {
+				       return &entry.pipe == pipe;
+			       });
+
+	if (it == pipeEntries_.end()) {
+		LOG(NxpNeoIsiDev, Error) << "Invalid pipe";
 		return;
 	}
 
-	if (pipeEntries_[index].free) {
+	PipeWrapper &entry = *it;
+	unsigned int index = std::distance(pipeEntries_.begin(), it);
+
+	LOG(NxpNeoIsiDev, Debug)
+		<< "Release pipe index " << index << " chained " << entry.chained;
+
+	if (entry.free) {
 		LOG(NxpNeoIsiDev, Error)
 			<< "Pipe index " << index << " already freed";
 		return;
 	}
-
-	ASSERT(index + 1 < pipes || !pipeEntries_[index].chained);
-	if (pipeEntries_[index].chained) {
-		pipeEntries_[index + 1].free = true;
-		pipeEntries_[index].chained = false;
+	entry.free = true;
+	if (entry.chained) {
+		ASSERT(index + 1 < pipeEntries_.size());
+		entry.chained = false;
+		PipeWrapper &next = pipeEntries_[index + 1];
+		ASSERT(!next.free);
+		next.free = true;
+		next.chained = false;
 	}
-	pipeEntries_[index].free = true;
-}
-
-/**
- * \brief Get the ISIPipe instance associated to a previously reserved pipe
- * \param[in] index The pipe channel index
- *
- * Return the ISIPipe instance for a given pipe index. The pipe must have been
- * reserved beforehand.
- *
- * \return The ISIPipe on success, nullptr otherwise
- */
-ISIPipe *ISIDevice::getPipeByIndex(unsigned int index)
-{
-	unsigned int pipes = pipeEntries_.size();
-
-	if (index >= pipes) {
-		LOG(NxpNeoIsiDev, Error)
-			<< "Invalid pipe index " << index << " max " << pipes;
-		return nullptr;
-	}
-
-	if (pipeEntries_[index].free) {
-		LOG(NxpNeoIsiDev, Error)
-			<< "Pipe not reserved " << index;
-		return nullptr;
-	}
-
-	return &pipeEntries_[index].pipe;
 }
 
 /**

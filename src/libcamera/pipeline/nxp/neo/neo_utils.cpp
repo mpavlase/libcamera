@@ -371,7 +371,7 @@ int PipelineConfig::loadAutoDetect()
 			continue;
 
 		/* Map for each stream the pipe index and per-entity routing */
-		std::map<StreamType, unsigned int> pipeIndex;
+		std::map<StreamType, ISIPipe *> pipeMap;
 		std::map<StreamType, RoutingMap> routingMaps;
 
 		/* Copy of the global streams map - revert changes in case of error */
@@ -408,19 +408,18 @@ int PipelineConfig::loadAutoDetect()
 				return -EINVAL;
 			}
 
-			unsigned int index;
-			ret = isiDevice->reservePipeBySize(sizeMax, &index);
-			if (ret) {
+			ISIPipe *isiPipe = isiDevice->reservePipe(sizeMax.width);
+			if (!isiPipe) {
 				LOG(NxpNeoPipe, Warning) << "Input pipe allocation failed";
 				goto error;
 			}
-			pipeIndex[stream] = index;
+			pipeMap[stream] = isiPipe;
 
 			CameraMediaStream cameraMediaStream;
 			RoutingMap routingMap;
 
 			ret = loadAutoDetectCameraStream(
-				index, entity,
+				isiPipe, entity,
 				sensorStream.pad, sensorStream.stream,
 				&streamMap, &routingMap, &cameraMediaStream);
 			if (ret)
@@ -446,8 +445,8 @@ int PipelineConfig::loadAutoDetect()
 		continue;
 
 	error:
-		for (auto [stream, index] : pipeIndex)
-			isiDevice->releasePipe(index);
+		for (auto [stream, pipe] : pipeMap)
+			isiDevice->releasePipe(pipe);
 	}
 
 	/* Finally, detect multi-camera conditions */
@@ -458,7 +457,7 @@ int PipelineConfig::loadAutoDetect()
 
 /**
  * \brief Discover a valid stream path from the sensor to the video capture device
- * \param[in] pipe The ISI pipe associated to that stream
+ * \param[in] pipe The ISI pipe index associated to that stream
  * \param[in] sensorEntity The targeted sensor media entity
  * \param[in] sensorPad The targeted sensor source pad
  * \param[in] sensorStream The targeted sensor source stream
@@ -478,7 +477,7 @@ int PipelineConfig::loadAutoDetect()
  *
  * \return 0 on success or a negative error code otherwise
  */
-int PipelineConfig::loadAutoDetectCameraStream(unsigned int pipe,
+int PipelineConfig::loadAutoDetectCameraStream(ISIPipe *isiPipe,
 					       MediaEntity *sensorEntity,
 					       unsigned int sensorPad,
 					       unsigned int sensorStream,
@@ -513,12 +512,13 @@ int PipelineConfig::loadAutoDetectCameraStream(unsigned int pipe,
 	/* Discover path from crossbar to pipe video node */
 	std::vector<std::vector<MediaLink *>> pipePaths;
 	std::string pipeName;
-	ISIPipe::videoDeviceName(pipeName, pipe);
+	unsigned int pipeIndex = isiPipe->index_;
+	ISIPipe::videoDeviceName(pipeName, pipeIndex);
 	MediaEntity *pipeEntity = media->getEntityByName(pipeName);
 	if (!pipeEntity)
 		return -EINVAL;
 	unsigned int crossbarSource =
-		isiDevice_->crossbarFirstSourcePad() + pipe;
+		isiDevice_->crossbarFirstSourcePad() + pipeIndex;
 
 	ret = loadAutoDetectFindPaths(crossbarEntity, crossbarSource,
 				      pipeEntity, kPadAny, &pipePaths);
@@ -573,7 +573,7 @@ int PipelineConfig::loadAutoDetectCameraStream(unsigned int pipe,
 		lastSinkStreamId = sinkStreamId;
 	}
 
-	CameraMediaStream _cameraMediaStream(slinks, pipe);
+	CameraMediaStream _cameraMediaStream(slinks, isiPipe);
 	*cameraMediaStream = std::move(_cameraMediaStream);
 
 	LOG(NxpNeoPipe, Debug)
