@@ -485,7 +485,7 @@ const V4L2PixelFormat ISIPipe::mbusCodeToPixelFormatBypass(unsigned int code)
 					   return pair.second == code;
 				   });
 
-	if (itMeta != bayerFormatsMap.end())
+	if (itMeta != metaFormatsMap.end())
 		return itMeta->first;
 
 	LOG(NxpNeoIsiDev, Error) << "Unknown bypass format";
