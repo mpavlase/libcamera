@@ -33,15 +33,13 @@ namespace libcamera {
 
 /* \todo Remove meta format local definitions. */
 #ifndef V4L2_META_FMT_NEO_ISP_PARAMS
-#define V4L2_META_FMT_NEO_ISP_PARAMS v4l2_fourcc('N', 'N', 'I', 'P')
 #define V4L2_META_FMT_NEO_ISP_EXT_PARAMS v4l2_fourcc('N', 'N', 'E', 'P')
-#define V4L2_META_FMT_NEO_ISP_STATS v4l2_fourcc('N', 'N', 'I', 'S')
 #define V4L2_META_FMT_NEO_ISP_EXT_STATS v4l2_fourcc('N', 'N', 'E', 'S')
 #endif
 
 /* \todo Remove when control is available in v4l2-controls header */
 #ifndef V4L2_CID_USER_NEOISP_BASE
-#define V4L2_CID_USER_NEOISP_BASE (V4L2_CID_USER_BASE + 0x1230)
+#define V4L2_CID_USER_NEOISP_BASE (V4L2_CID_USER_BASE + 0x1240)
 #endif
 
 LOG_DEFINE_CATEGORY(NxpNeoDev)
@@ -185,7 +183,8 @@ const std::string kIsiDriverName = "mxc-isi";
  * is marked as invalid.
  */
 NeoDevice::NeoDevice(std::shared_ptr<MediaDevice> media, MediaEntity *subdevEntity)
-	: hwCapabilities_(0), apiVersion_(NEOISP_LEGACY_META_BUFFER), media_(media), valid_(false)
+	: hwCapabilities_(0), supportedParamsBlocks_(kDefaultParamsSupported),
+	  media_(media), valid_(false)
 {
 	if (!media || !subdevEntity)
 		return;
@@ -253,35 +252,12 @@ NeoDevice::NeoDevice(std::shared_ptr<MediaDevice> media, MediaEntity *subdevEnti
 	 */
 	V4L2Subdevice *isp = isp_.get();
 	/*
-	 * Get uapi meta version from kernel, then select the most appropriate
-	 * version compatible with user space.
-	 */
-	const struct v4l2_query_ext_ctrl *ctlInfo =
-		isp->controlInfo(V4L2_CID_NEOISP_META_API_VERSION);
-	if (ctlInfo != nullptr) {
-		int maxVersionUser = NEOISP_META_BUFFER_VERSION_COUNT - 1;
-		int maxVersionKernel = static_cast<int>(ctlInfo->maximum);
-		int minVersionKernel = static_cast<int>(ctlInfo->minimum);
-		if (minVersionKernel > maxVersionUser) {
-			LOG(NxpNeoDev, Error) << "Device uAPI version not supported";
-			return;
-		}
-		int apiVersion = std::min(maxVersionUser, maxVersionKernel);
-		LOG(NxpNeoDev, Debug) << "Highest compatible uAPI version is " << apiVersion;
-		ControlList ctrls(isp->controls());
-		ctrls.set(V4L2_CID_NEOISP_META_API_VERSION, apiVersion);
-		ret = isp->setControls(&ctrls);
-		if (ret)
-			return;
-		apiVersion_ = apiVersion;
-	}
-	/*
 	 * Get Neo ISP hardware and driver capabilities.
 	 * Fallback to MSB alignment for backward compatibility with older
 	 * kernel drivers that don't expose V4L2_CID_NEOISP_QUERYCAP. This was
 	 * the default behavior in earlier driver versions.
 	 */
-	ctlInfo = isp->controlInfo(V4L2_CID_NEOISP_QUERYCAP);
+	const struct v4l2_query_ext_ctrl *ctlInfo = isp->controlInfo(V4L2_CID_NEOISP_QUERYCAP);
 	if (ctlInfo != nullptr) {
 		const std::array<uint32_t, 1> cids = { V4L2_CID_NEOISP_QUERYCAP };
 		ControlList ctrls = isp->getControls(cids);
@@ -292,8 +268,15 @@ NeoDevice::NeoDevice(std::shared_ptr<MediaDevice> media, MediaEntity *subdevEnti
 		hwCapabilities_ = NEO_CAP_ALIGNMENT_MSB;
 	}
 
+	/*
+	 * Get the Neo ISP blocks list
+	 */
+	ctlInfo = isp_->controlInfo(V4L2_CID_NEOISP_SUPPORTED_PARAMS_BLOCKS);
+	if (ctlInfo != nullptr)
+		supportedParamsBlocks_ = static_cast<uint64_t>(ctlInfo->default_value);
+
 	valid_ = true;
-};
+}
 
 /**
  * \brief Allocate buffers for all the NEO video devices
@@ -487,7 +470,7 @@ int NeoDevice::configure(const PipeConfig &pipeConfig,
 		ret = configureVideoDeviceLink(device, true);
 		if (ret)
 			return ret;
-		ret = configureVideoDeviceMeta(device, apiVersion_);
+		ret = configureVideoDeviceMeta(device);
 		if (ret)
 			return ret;
 
@@ -889,15 +872,9 @@ int NeoDevice::configureVideoDevice(VideoDevice device, V4L2DeviceFormat *format
 /**
  * \brief Configure a NEO metadata video device with API version-specific format
  * \param[in] device The video device identifier (must be a metadata device)
- * \param[in] apiVersion The NEO ISP metadata API version to use
  *
  * This function configures a metadata video device (params or stats) with the
- * appropriate format based on the specified API version. It supports two API
- * versions:
- * - NEOISP_LEGACY_META_BUFFER: Uses legacy metadata formats
- *   (V4L2_META_FMT_NEO_ISP_PARAMS and V4L2_META_FMT_NEO_ISP_STATS)
- * - Extensible format: Uses extensible metadata formats
- *   (V4L2_META_FMT_NEO_ISP_EXT_PARAMS and V4L2_META_FMT_NEO_ISP_EXT_STATS)
+ * generic extensible format from v4l2-isp framework.
  *
  * The function validates that the device is a valid metadata device before
  * applying the format configuration. Pixel video devices (input0, input1,
@@ -907,12 +884,11 @@ int NeoDevice::configureVideoDevice(VideoDevice device, V4L2DeviceFormat *format
  * \return 0 on success or a negative error code otherwise
  * \retval -EINVAL if the device is invalid or is not a metadata device
  */
-int NeoDevice::configureVideoDeviceMeta(VideoDevice device, unsigned int apiVersion)
+int NeoDevice::configureVideoDeviceMeta(VideoDevice device)
 {
 	unsigned int id = static_cast<int>(device);
 	LOG(NxpNeoDev, Debug)
-		<< logPrefix() << "Configure video device meta " << id
-		<< " apiVersion " << apiVersion;
+		<< logPrefix() << "Configure video device meta " << id;
 
 	if (!isDeviceValid(device) || !isDeviceMeta(device)) {
 		LOG(NxpNeoDev, Error)
@@ -921,27 +897,15 @@ int NeoDevice::configureVideoDeviceMeta(VideoDevice device, unsigned int apiVers
 	}
 
 	V4L2DeviceFormat format = {};
-	static const std::map<VideoDevice, std::pair<unsigned int, size_t>>
-	metaFormatsLegacy = {
-		{ VideoDevice::Params, { V4L2_META_FMT_NEO_ISP_PARAMS, sizeof(struct neoisp_meta_params_s) }},
-		{ VideoDevice::Stats, { V4L2_META_FMT_NEO_ISP_STATS, sizeof(struct neoisp_meta_stats_s) }},
-	};
-
-	static const std::map<VideoDevice, std::pair<unsigned int, size_t>>
-	metaFormatsExtensible = {
-		{ VideoDevice::Params, { V4L2_META_FMT_NEO_ISP_EXT_PARAMS, sizeof(struct neoisp_ext_params_s) }},
-		{ VideoDevice::Stats, { V4L2_META_FMT_NEO_ISP_EXT_STATS, sizeof(struct neoisp_ext_stats_s) }},
-	};
-
-	auto &formatMap = (apiVersion == NEOISP_LEGACY_META_BUFFER)
-				  ? metaFormatsLegacy
-				  : metaFormatsExtensible;
-	auto it = formatMap.find(device);
-	ASSERT(it != formatMap.end());
-	const auto &[dev, formatPair] = *it;
-	const auto &[fourcc, size] = formatPair;
-	format.fourcc = V4L2PixelFormat(fourcc);
-	format.planes[0].size = size;
+	if (device == VideoDevice::Params) {
+		format.fourcc = V4L2PixelFormat(V4L2_META_FMT_NEO_ISP_EXT_PARAMS);
+		format.planes[0].size =
+			offsetof(struct v4l2_isp_buffer, data) + NEOISP_EXT_PARAMS_MAX_SIZE;
+	} else {
+		format.fourcc = V4L2PixelFormat(V4L2_META_FMT_NEO_ISP_EXT_STATS);
+		format.planes[0].size =
+			offsetof(struct v4l2_isp_buffer, data) + NEOISP_EXT_STATS_MAX_SIZE;
+	}
 
 	V4L2VideoDevice *video = videoDevice(device);
 	ASSERT(video);

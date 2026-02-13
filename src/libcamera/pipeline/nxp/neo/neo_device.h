@@ -16,10 +16,42 @@
 #include <string>
 #include <vector>
 
+#include <linux/nxp_neoisp.h>
+
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
 namespace libcamera {
+
+/* All imx95x blocks are supported by default */
+constexpr unsigned long long kDefaultParamsSupported =
+	_BITULL(NEOISP_PARAM_BLK_PIPE_CONF) |
+	_BITULL(NEOISP_PARAM_BLK_HEAD_COLOR) |
+	_BITULL(NEOISP_PARAM_BLK_HDR_DECOMPRESS0) |
+	_BITULL(NEOISP_PARAM_BLK_HDR_DECOMPRESS1) |
+	_BITULL(NEOISP_PARAM_BLK_OBWB0) |
+	_BITULL(NEOISP_PARAM_BLK_OBWB1) |
+	_BITULL(NEOISP_PARAM_BLK_OBWB2) |
+	_BITULL(NEOISP_PARAM_BLK_HDR_MERGE) |
+	_BITULL(NEOISP_PARAM_BLK_RGBIR) |
+	_BITULL(NEOISP_PARAM_BLK_STAT) |
+	_BITULL(NEOISP_PARAM_BLK_CTEMP) |
+	_BITULL(NEOISP_PARAM_BLK_IR_COMPRESS) |
+	_BITULL(NEOISP_PARAM_BLK_BNR) |
+	_BITULL(NEOISP_PARAM_BLK_VIGNETTING_CTRL) |
+	_BITULL(NEOISP_PARAM_BLK_DEMOSAIC) |
+	_BITULL(NEOISP_PARAM_BLK_RGB2YUV) |
+	_BITULL(NEOISP_PARAM_BLK_DR_COMP) |
+	_BITULL(NEOISP_PARAM_BLK_NR) |
+	_BITULL(NEOISP_PARAM_BLK_AF) |
+	_BITULL(NEOISP_PARAM_BLK_EE) |
+	_BITULL(NEOISP_PARAM_BLK_DF) |
+	_BITULL(NEOISP_PARAM_BLK_CONVMED) |
+	_BITULL(NEOISP_PARAM_BLK_CAS) |
+	_BITULL(NEOISP_PARAM_BLK_GCM) |
+	_BITULL(NEOISP_PARAM_BLK_VIGNETTING_TABLE) |
+	_BITULL(NEOISP_PARAM_BLK_DRC_GLOBAL_TONEMAP) |
+	_BITULL(NEOISP_PARAM_BLK_DRC_LOCAL_TONEMAP);
 
 class DeviceEnumerator;
 class FrameBuffer;
@@ -69,7 +101,7 @@ public:
 
 	std::shared_ptr<MediaDevice> media() const { return media_; }
 	uint32_t hwCapabilities() const { return hwCapabilities_; }
-	uint32_t apiVersion() const { return apiVersion_; }
+	uint64_t supportedParamsBlocks() const { return supportedParamsBlocks_; }
 
 	bool isValid() const { return valid_; }
 
@@ -87,7 +119,7 @@ public:
 private:
 	int configureVideoDeviceLink(VideoDevice device, bool enable);
 	int configureVideoDevice(VideoDevice device, V4L2DeviceFormat *format);
-	int configureVideoDeviceMeta(VideoDevice device, unsigned int apiVersion);
+	int configureVideoDeviceMeta(VideoDevice device);
 
 	std::string logPrefix() const
 	{
@@ -99,7 +131,7 @@ private:
 	std::vector<VideoDevice> configured_;
 
 	uint32_t hwCapabilities_;
-	uint32_t apiVersion_;
+	uint64_t supportedParamsBlocks_;
 
 	std::shared_ptr<MediaDevice> media_;
 	bool valid_;

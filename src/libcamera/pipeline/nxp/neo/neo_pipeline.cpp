@@ -2212,12 +2212,17 @@ int NxpNeoCameraData::loadIPA()
 	uint32_t hwRevision = neo->media()->hwRevision();
 	ipa::nxpneo::SensorConfig sensorConfig;
 	std::vector<uint32_t> ids = utils::map_keys(sensor->controls().idmap());
-	ipa::nxpneo::InitParams initParams = { hwRevision, neo->hwCapabilities(),
-					       neo->apiVersion(),
-					       feCamera_->name(), sensorInfo,
-					       sensor->controls(),
-					       sensor->getControls(ids),
-					       !!sensor->focusLens() };
+	ipa::nxpneo::InitParams initParams = {
+		hwRevision,
+		neo->hwCapabilities(),
+		neo->supportedParamsBlocks(),
+		feCamera_->name(),
+		sensorInfo,
+		sensor->controls(),
+		sensor->getControls(ids),
+		!!sensor->focusLens(),
+	};
+
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
 			 initParams, &ipaControls_, &sensorConfig);
 	if (ret) {
