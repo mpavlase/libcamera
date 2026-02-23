@@ -512,7 +512,7 @@ int PipelineConfig::loadAutoDetectCameraStream(ISIPipe *isiPipe,
 	/* Discover path from crossbar to pipe video node */
 	std::vector<std::vector<MediaLink *>> pipePaths;
 	std::string pipeName;
-	unsigned int pipeIndex = isiPipe->index_;
+	unsigned int pipeIndex = isiPipe->index();
 	ISIPipe::videoDeviceName(pipeName, pipeIndex);
 	MediaEntity *pipeEntity = media->getEntityByName(pipeName);
 	if (!pipeEntity)

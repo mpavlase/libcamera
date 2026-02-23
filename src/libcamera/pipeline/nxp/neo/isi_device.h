@@ -46,6 +46,8 @@ public:
 	int importBuffers(unsigned int bufferCount);
 	void freeBuffers();
 
+	unsigned int index() const { return index_; };
+
 	static const std::vector<uint32_t> &bayerMbusCodes();
 	static const std::vector<uint32_t> &metaMbusCodes();
 	static const std::vector<uint32_t> &sinkMbusCodesProcessed();
@@ -54,7 +56,6 @@ public:
 
 	std::unique_ptr<V4L2VideoDevice> capture_;
 	std::vector<std::unique_ptr<FrameBuffer>> captureBuffers_;
-	unsigned int index_;
 
 private:
 	std::string logPrefix() const
@@ -62,6 +63,7 @@ private:
 		return "Pipe[" + capture_->deviceNode() + "] ";
 	}
 
+	unsigned int index_;
 	std::unique_ptr<V4L2Subdevice> pipe_;
 };
 
