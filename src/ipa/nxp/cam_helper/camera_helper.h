@@ -82,7 +82,7 @@ public:
 	CameraHelper();
 	virtual ~CameraHelper() = default;
 	virtual void setCameraMode(const CameraMode &mode);
-	virtual void setControls(const ControlList *sensorCtrls);
+	virtual void sensorControlList(const ControlList *sensorCtrls);
 
 	virtual void controlListSetAGC(
 		ControlList *ctrls,

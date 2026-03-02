@@ -200,8 +200,8 @@ int IPANxpNeo::init(const IPASettings &settings, const InitParams &params,
 	context_.configuration = {};
 	sensorControlList_ = params.sensorControlList;
 
-	/* Set the camera helper with sensor control values. */
-	context_.camHelper->setControls(&params.sensorControlList);
+	/* Update the camera helper with sensor control values. */
+	context_.camHelper->sensorControlList(&params.sensorControlList);
 
 	/* Initialize the IPA context. */
 	updateSensorConfig(params.sensorInfo, params.sensorControls);

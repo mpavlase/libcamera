@@ -204,7 +204,7 @@ void CameraHelper::setCameraMode(const CameraMode &mode)
 }
 
 /**
- * \brief Configure the camera helper with sensor control values
+ * \brief Update the camera helper with sensor control values
  *
  * This function passes the sensor control list populated with the actual
  * control values read from the sensor.
@@ -213,7 +213,7 @@ void CameraHelper::setCameraMode(const CameraMode &mode)
  *
  * \param[in] sensorCtrls The sensor control list
  */
-void CameraHelper::setControls(const ControlList *sensorCtrls)
+void CameraHelper::sensorControlList(const ControlList *sensorCtrls)
 {
 	/* Nothing to do */
 	(void)sensorCtrls;

@@ -177,7 +177,7 @@ public:
 	double gain(uint32_t gainCode) const override;
 
 #if USE_CUSTOM_CONTROLS
-	void setControls(const ControlList *sensorCtrls) override;
+	void sensorControlList(const ControlList *sensorCtrls) override;
 	void controlListSetAGC(
 		ControlList *ctrls,
 		Span<const Duration> exposures, Span<const double> gains) override;
@@ -478,7 +478,7 @@ uint32_t CameraHelperMx95mbcam::distributeDigitalGain(
 }
 
 #if USE_CUSTOM_CONTROLS
-void CameraHelperMx95mbcam::setControls(const ControlList *sensorCtrls)
+void CameraHelperMx95mbcam::sensorControlList(const ControlList *sensorCtrls)
 {
 	const ControlValue &val = sensorCtrls->get(V4L2_CID_OX03C10_OTP_CORRECTION);
 	if (val.type() == ControlTypeNone) {
