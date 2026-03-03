@@ -10,6 +10,7 @@
  */
 
 #include <limits>
+#include <string_view>
 
 #include <linux/media-bus-format.h>
 
@@ -101,6 +102,27 @@ const std::map<V4L2PixelFormat, uint32_t> processedFormatsMap = {
 } // namespace
 
 /**
+ * \brief Construct an ISIPipe instance
+ * \param[in] index The index of the ISI pipe channel
+ *
+ * Constructs an ISIPipe object for the specified channel index.
+ * The actual device initialization is performed separately via the init()
+ * method.
+ */
+ISIPipe::ISIPipe(unsigned int index)
+	: index_(index)
+{
+	static constexpr std::string_view kDeviceEntityPrefix = "mxc_isi.";
+	static constexpr std::string_view kVDeviceEntitySuffix = ".capture";
+
+	subdeviceName_ =
+		std::string(kDeviceEntityPrefix) + std::to_string(index);
+	videoDeviceName_ =
+		std::string(kDeviceEntityPrefix) + std::to_string(index) +
+		std::string(kVDeviceEntitySuffix);
+}
+
+/**
  * \brief Initialize components of the ISI pipe
  * \param[in] media The ISI media device
  *
@@ -117,9 +139,7 @@ int ISIPipe::init(const MediaDevice *media)
 
 	LOG(NxpNeoIsiDev, Debug) << "Init pipe index " << index_;
 
-	std::string subDevEntityName;
-	subdeviceName(subDevEntityName, index_);
-	pipe_ = V4L2Subdevice::fromEntityName(media, subDevEntityName);
+	pipe_ = V4L2Subdevice::fromEntityName(media, subdeviceName());
 	if (!pipe_)
 		return -ENODEV;
 
@@ -129,9 +149,7 @@ int ISIPipe::init(const MediaDevice *media)
 		return ret;
 	}
 
-	std::string videoDevEntityName;
-	videoDeviceName(videoDevEntityName, index_);
-	capture_ = V4L2VideoDevice::fromEntityName(media, videoDevEntityName);
+	capture_ = V4L2VideoDevice::fromEntityName(media, videoDeviceName());
 	if (!capture_)
 		return -ENODEV;
 
@@ -178,35 +196,6 @@ int ISIPipe::stop()
 			<< logPrefix() << "Failed to stop";
 	}
 	return ret;
-}
-
-/**
- * \brief Generate the ISI pipe subdevice entity name for a given index
- * \param[out] name The generated subdevice entity name
- * \param[in] index The pipe index
- *
- * Constructs the subdevice entity name by combining the prefix "mxc_isi."
- * with the provided pipe index.
- */
-void ISIPipe::subdeviceName(std::string &name, unsigned int index)
-{
-	static const std::string kSDeviceEntityPrefix = "mxc_isi.";
-	name = kSDeviceEntityPrefix + std::to_string(index);
-}
-
-/**
- * \brief Generate the ISI pipe video device entity name for a given index
- * \param[out] name The generated video device entity name
- * \param[in] index The pipe index
- *
- * Constructs the video device entity name by combining the prefix "mxc_isi."
- * with the provided pipe index and the suffix ".capture".
- */
-void ISIPipe::videoDeviceName(std::string &name, unsigned int index)
-{
-	static const std::string kVDeviceEntityPrefix = "mxc_isi.";
-	static const std::string kVDeviceEntitySuffix = ".capture";
-	name = kVDeviceEntityPrefix + std::to_string(index) + kVDeviceEntitySuffix;
 }
 
 /**
@@ -335,6 +324,18 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
 
 	return 0;
 }
+
+/**
+ * \fn ISIPipe::subdeviceName()
+ * \brief Get the subdevice entity name
+ * \return The subdevice entity name
+ */
+
+/**
+ * \fn ISIPipe::videoDeviceName()
+ * \brief Get the video device entity name
+ * \return The video device entity name
+ */
 
 /**
  * \brief Allocate buffers for ISI channel

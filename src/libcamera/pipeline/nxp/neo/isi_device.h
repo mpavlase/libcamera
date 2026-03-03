@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <string>
 #include <vector>
 
 #include "libcamera/internal/v4l2_subdevice.h"
@@ -28,8 +29,7 @@ public:
 	static constexpr unsigned int kUnchainedWidthMax = 2048;
 	static constexpr unsigned int kChainedWidthMax = 4096;
 
-	ISIPipe(unsigned int index)
-		: index_(index) {}
+	ISIPipe(unsigned int index);
 
 	int init(const MediaDevice *media);
 
@@ -39,8 +39,8 @@ public:
 	int start();
 	int stop();
 
-	static void subdeviceName(std::string &name, unsigned int index);
-	static void videoDeviceName(std::string &name, unsigned int index);
+	const std::string &subdeviceName() const { return subdeviceName_; }
+	const std::string &videoDeviceName() const { return videoDeviceName_; }
 
 	int allocateBuffers(unsigned int bufferCount);
 	int importBuffers(unsigned int bufferCount);
@@ -65,6 +65,8 @@ private:
 
 	unsigned int index_;
 	std::unique_ptr<V4L2Subdevice> pipe_;
+	std::string subdeviceName_;
+	std::string videoDeviceName_;
 };
 
 class ISIDevice
