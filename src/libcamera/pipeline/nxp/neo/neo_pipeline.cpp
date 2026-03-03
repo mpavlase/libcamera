@@ -294,8 +294,6 @@ private:
 	int freeBuffersRaw();
 	int freeBuffersYuv();
 
-	int configureFrontEndStream(const std::vector<CameraMediaStream::StreamLink> &streamLinks,
-				    V4L2SubdeviceFormat &sdFormat);
 	int configureFrontEndLinks() const;
 
 	int configureRaw(CameraConfiguration *c);
@@ -2087,8 +2085,6 @@ int NxpNeoCameraData::configureFrontEndFormat(V4L2SubdeviceFormat &sensorFormat,
 	for (auto [stream, pipe] : pipes_) {
 		const CameraMediaStream *cameraInfoStream = cameraInfo_->stream(stream);
 		ASSERT(cameraInfoStream);
-		const std::vector<CameraMediaStream::StreamLink> &streamLinks =
-			cameraInfoStream->streamLinks();
 
 		V4L2SubdeviceFormat &subdevFormat = pipesSubDevFormats_[stream];
 		if (stream == StreamTypeImage0) {
@@ -2102,7 +2098,7 @@ int NxpNeoCameraData::configureFrontEndFormat(V4L2SubdeviceFormat &sensorFormat,
 			continue;
 		};
 
-		ret = configureFrontEndStream(streamLinks, subdevFormat);
+		ret = cameraInfoStream->streamGraph().configure(sensorFormat);
 		if (ret)
 			return ret;
 	}
@@ -2369,119 +2365,22 @@ int NxpNeoCameraData::freeBuffersYuv()
 }
 
 /**
- * \brief Configure the graph format for a stream of the camera
- * \param[in] streamLinks Vector of media links and streams
- * \param[in] sdFormat The subdevice format used for the stream
- *
- * The pad/stream involved in the camera stream graph are configured with the
- * specified format.
- *
- * \return 0 in case of success or a negative error code
- */
-int NxpNeoCameraData::configureFrontEndStream(
-	const std::vector<CameraMediaStream::StreamLink> &streamLinks,
-	V4L2SubdeviceFormat &sdFormat)
-{
-	const MediaDevice *media = pipe()->isiDevice()->media_;
-	std::unique_ptr<V4L2Subdevice> subDev;
-	int ret = 0;
-
-	for (const auto &streamLink : streamLinks) {
-		const MediaLink *mediaLink = streamLink.mediaLink_;
-		const MediaPad *sourceMediaPad = mediaLink->source();
-		const MediaPad *sinkMediaPad = mediaLink->sink();
-		std::string sourceName = sourceMediaPad->entity()->name();
-		std::string sinkName = sinkMediaPad->entity()->name();
-		unsigned int sourcePad = sourceMediaPad->index();
-		unsigned int sinkPad = sinkMediaPad->index();
-		unsigned int sourceStream = streamLink.sourceStream_;
-		unsigned int sinkStream = streamLink.sinkStream_;
-
-		LOG(NxpNeoPipe, Debug)
-			<< "Set format " << sdFormat.toString()
-			<< " source " << sourceName << " "
-			<< sourcePad << "/" << sourceStream
-			<< " sink " << sinkName << " "
-			<< sinkPad << "/" << sinkStream;
-
-		subDev = V4L2Subdevice::fromEntityName(media, sourceName);
-		ret = subDev->open();
-		if (ret) {
-			LOG(NxpNeoPipe, Warning)
-				<< "Error opening subdev " << sourceName;
-			return ret;
-		}
-		ret = subDev->setFormat({ sourcePad, sourceStream }, &sdFormat);
-		if (ret) {
-			LOG(NxpNeoPipe, Warning)
-				<< "Error setting format " << sourceName;
-			return ret;
-		}
-
-		/* Stop at capture video node */
-		if (sinkMediaPad->entity()->function() == MEDIA_ENT_T_V4L2_VIDEO) {
-			LOG(NxpNeoPipe, Debug)
-				<< "Configuration completed at video device "
-				<< sinkName;
-			return 0;
-		}
-
-		subDev = V4L2Subdevice::fromEntityName(media, sinkName);
-		ret = subDev->open();
-		if (ret) {
-			LOG(NxpNeoPipe, Warning)
-				<< "Error opening subdev " << sinkName;
-			return ret;
-		}
-		ret = subDev->setFormat({ sinkPad, sinkStream }, &sdFormat);
-		if (ret) {
-			LOG(NxpNeoPipe, Warning)
-				<< "Error setting format " << sinkName;
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-/**
  * \brief Enable media links from the camera graph
  * \return 0 in case of success or a negative error code
  */
 int NxpNeoCameraData::configureFrontEndLinks() const
 {
+	int ret = 0;
 	for (StreamType stream : kStreamTypes) {
 		const CameraMediaStream *cameraStream = cameraInfo_->stream(stream);
 		if (!cameraStream)
 			continue;
-
-		std::vector<CameraMediaStream::StreamLink> links =
-			cameraStream->streamLinks();
-		for (auto &streamLink : links) {
-			MediaLink *link = streamLink.mediaLink_;
-			MediaPad *sourceMPad = link->source();
-			MediaPad *sinkMPad = link->sink();
-			std::string source = sourceMPad->entity()->name();
-			std::string sink = sinkMPad->entity()->name();
-			unsigned int sourcePad = sourceMPad->index();
-			unsigned int sinkPad = sinkMPad->index();
-
-			LOG(NxpNeoPipe, Debug)
-				<< "Enable link stream " << stream
-				<< " source "
-				<< source << "/" << sourcePad
-				<< " sink "
-				<< sink << "/" << sinkPad;
-
-			int ret = link->setEnabled(true);
-			if (ret) {
-				LOG(NxpNeoPipe, Error) << "Failed to enable Link";
-				return ret;
-			}
-		}
+		ret = cameraStream->streamGraph().initLinks();
+		if (ret)
+			break;
 	}
 
-	return 0;
+	return ret;
 }
 
 int NxpNeoCameraData::configureRaw(CameraConfiguration *c)

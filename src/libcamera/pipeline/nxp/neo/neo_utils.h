@@ -21,6 +21,7 @@
 #include "libcamera/internal/yaml_parser.h"
 
 #include "isi_device.h"
+#include "media_graph.h"
 
 namespace libcamera {
 
@@ -33,28 +34,16 @@ class PipelineConfig;
 class CameraMediaStream
 {
 public:
-	struct StreamLink {
-		StreamLink(MediaLink *mediaLink, unsigned int sourceStream,
-			   unsigned int sinkStream)
-			: mediaLink_(mediaLink), sourceStream_(sourceStream),
-			  sinkStream_(sinkStream) {}
-		MediaLink *mediaLink_;
-		unsigned int sourceStream_;
-		unsigned int sinkStream_;
-	};
+	CameraMediaStream(ISIPipe *pipe)
+		: isiPipe_(pipe) {}
 
-	CameraMediaStream() {}
-	CameraMediaStream(std::vector<StreamLink> &links, ISIPipe *pipe)
-		: streamLinks_(links), isiPipe_(pipe) {}
-	virtual ~CameraMediaStream() {}
-
-	const std::vector<StreamLink> &streamLinks() const { return streamLinks_; }
 	ISIPipe *pipe() const { return isiPipe_; }
-	std::string toString() const;
+	const StreamGraph &streamGraph() const { return streamGraph_; }
+	StreamGraph &streamGraph() { return streamGraph_; }
 
 private:
-	std::vector<StreamLink> streamLinks_;
 	ISIPipe *isiPipe_ = nullptr;
+	StreamGraph streamGraph_;
 };
 
 struct CameraProperties {
@@ -120,22 +109,6 @@ private:
 		std::numeric_limits<unsigned int>::max();
 
 	int loadAutoDetect();
-	int loadAutoDetectCameraStream(ISIPipe *isiPipe,
-				       MediaEntity *sensorEntity,
-				       unsigned int sensorPad,
-				       unsigned int sensorStream,
-				       std::map<MediaPad *, unsigned int> *streamMap,
-				       RoutingMap *routingMap,
-				       CameraMediaStream *cameraMediaStream);
-	int loadAutoDetectFindPaths(MediaEntity *fromEntity, unsigned int fromPad,
-				    MediaEntity *toEntity, unsigned int toPad,
-				    std::vector<std::vector<MediaLink *>> *linkPaths);
-	unsigned int loadAutoDetectPadToStream(std::map<MediaPad *, unsigned int> *streamMap,
-					       MediaPad *pad);
-	int loadAutoDetectAddRoute(MediaEntity *entity,
-				   V4L2Subdevice::Stream *sinkStream,
-				   V4L2Subdevice::Stream *sourceStream,
-				   std::map<MediaEntity *, V4L2Subdevice::Routing> *routingMap);
 	int loadAutoDetectMultiCamera();
 
 	int parseCameras(const YamlObject &cameras);
