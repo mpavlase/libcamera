@@ -23,6 +23,8 @@ class FrameBuffer;
 class MediaDevice;
 class PixelFormat;
 
+namespace nxpneo {
+
 class ISIPipe
 {
 public:
@@ -100,5 +102,7 @@ private:
 	std::unique_ptr<V4L2Subdevice> crossbar_;
 	unsigned int xbarSinkPads_ = 0;
 };
+
+} /* namespace nxpneo */
 
 } /* namespace libcamera */

@@ -24,6 +24,8 @@ namespace libcamera {
 
 LOG_DEFINE_CATEGORY(NxpNeoIsiDev)
 
+namespace nxpneo {
+
 /*
  * -------------------------------- ISIPipe --------------------------------
  */
@@ -698,5 +700,7 @@ const std::string &ISIDevice::crossbarSubdevName()
 	static const std::string crossbarName = "crossbar";
 	return crossbarName;
 }
+
+} /* namespace nxpneo */
 
 } /* namespace libcamera */

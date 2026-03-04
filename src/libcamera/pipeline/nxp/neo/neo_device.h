@@ -22,6 +22,8 @@ namespace libcamera {
 class FrameBuffer;
 class MediaDevice;
 
+namespace nxpneo {
+
 class NeoDevice
 {
 public:
@@ -95,5 +97,7 @@ private:
 	uint32_t hwCapabilities_ = 0;
 	uint32_t apiVersion_ = NEOISP_LEGACY_META_BUFFER;
 };
+
+} /* namespace nxpneo */
 
 } /* namespace libcamera */

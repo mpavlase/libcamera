@@ -43,6 +43,8 @@ namespace libcamera {
 
 LOG_DEFINE_CATEGORY(NxpNeoDev)
 
+namespace nxpneo {
+
 /**
  * \struct PipeConfig
  * \brief Configuration parameters for the Neo ISP device
@@ -874,5 +876,7 @@ int NeoDevice::configureVideoDeviceMeta(VideoDevice device, unsigned int apiVers
 
 	return ret;
 }
+
+} /* namespace nxpneo */
 
 } /* namespace libcamera */
