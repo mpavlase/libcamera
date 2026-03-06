@@ -231,7 +231,6 @@ int IPANxpNeo::init(const IPASettings &settings, const InitParams &params,
 	}
 
 	sensorConfig->embeddedTopLines = attributes->mdParams.topLines;
-	sensorConfig->rgbIr = attributes->rgbIr;
 
 	return 0;
 }

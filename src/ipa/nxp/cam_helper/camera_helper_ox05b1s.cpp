@@ -33,8 +33,6 @@ class CameraHelperOx05b1s : public CameraHelper
 public:
 	CameraHelperOx05b1s()
 	{
-		attributes_.rgbIr = true;
-
 		/* gainType_ / gainConstants_ are unused */
 
 		/* Adapt the default delayedControls for the ox05b1s custom controls */

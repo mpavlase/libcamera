@@ -181,7 +181,6 @@ CameraHelper::CameraHelper()
 		  {
 			  0, /* topLines */
 		  } /* MdParams */,
-		  false, /* rgbIr */
 	  }
 {
 }
