@@ -254,7 +254,6 @@ public:
 	int init(NeoDeviceAllocator *neoAllocator);
 	PipelineHandlerNxpNeo *pipe();
 
-	bool sensorIsRgbIr() const { return sensorIsRgbIr_; }
 	void adjustTopLinesSize(Size *size) const;
 	int configureFrontEndFormat(V4L2SubdeviceFormat &sensorFormat,
 				    Transform transform);
@@ -263,6 +262,7 @@ public:
 	NeoDevice *neoDevice(ContextType context = ContextTypeRgb) const;
 	std::map<StreamType, ISIPipe *> &isiPipes() { return pipes_; }
 	const std::string &cameraName() const { return sensor_->entity()->name(); }
+	bool sensorIsRgbIr() const { return cameraInfo_->cameraProperties().rgbirCfa; }
 	bool multiCamera() const { return cameraInfo_->cameraProperties().multiCamera; }
 	std::optional<utils::Duration> controlsDelay() const
 	{
@@ -346,7 +346,6 @@ private:
 	std::unique_ptr<DelayedControls> delayedCtrls_;
 
 	unsigned int sequence_ = 0;
-	bool sensorIsRgbIr_ = false;
 	unsigned int embeddedTopLines_ = 0;
 	bool isRawCamera_ = false;
 
@@ -2175,7 +2174,6 @@ int NxpNeoCameraData::loadIPA()
 		return ret;
 	}
 
-	sensorIsRgbIr_ = sensorConfig.rgbIr;
 	embeddedTopLines_ = sensorConfig.embeddedTopLines;
 
 	/*

@@ -510,6 +510,10 @@ int PipelineConfig::parseCameras(const YamlObject &cameras)
 		properties.formatBpp = fmtObj["bpp"].get<uint32_t>();
 		properties.formatSize = fmtObj["size"].get<Size>();
 
+		const YamlObject &rgbirCfaObj = cameraObj["rgbir-cfa"];
+		if (rgbirCfaObj.isValue())
+			properties.rgbirCfa = rgbirCfaObj.get<bool>().value_or(false);
+
 		const YamlObject &orientationObj = cameraObj["orientation"];
 		if (orientationObj.isValue()) {
 			uint32_t orientation = orientationObj.get<uint32_t>().value_or(0);

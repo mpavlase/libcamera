@@ -50,6 +50,7 @@ struct CameraProperties {
 	bool image1Stream;
 	bool eDataStream;
 	bool multiCamera;
+	bool rgbirCfa;
 	std::optional<unsigned int> formatBpp;
 	std::optional<Size> formatSize;
 	std::optional<Orientation> orientation;
