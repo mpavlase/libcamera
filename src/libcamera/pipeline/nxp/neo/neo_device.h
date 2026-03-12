@@ -11,7 +11,9 @@
 
 #pragma once
 
+#include <deque>
 #include <memory>
+#include <vector>
 #include <string>
 
 #include "libcamera/internal/v4l2_subdevice.h"
@@ -19,8 +21,11 @@
 
 namespace libcamera {
 
+class DeviceEnumerator;
 class FrameBuffer;
 class MediaDevice;
+class MediaEntity;
+class PipelineHandler;
 
 namespace nxpneo {
 
@@ -43,10 +48,8 @@ public:
 		Stats,
 	};
 
-	NeoDevice() = default;
+	NeoDevice(std::shared_ptr<MediaDevice> media, MediaEntity *subdevEntity);
 	~NeoDevice() = default;
-
-	int init(MediaDevice *media);
 
 	int allocateBuffers(unsigned int bufferCount);
 	void freeBuffers();
@@ -58,16 +61,17 @@ public:
 	int stop();
 
 	V4L2VideoDevice *videoDevice(VideoDevice device) const;
-	static const std::string &driverName();
-	static const std::string &subdeviceName();
-	static const std::string &videoDeviceName(VideoDevice device);
+	const std::string &subdeviceName() const;
+	const std::string &videoDeviceName(VideoDevice device) const;
 
 	const std::vector<PixelFormat> &capturePixelFormats(VideoDevice device) const;
 	static const std::vector<V4L2PixelFormat> &outputFormats(VideoDevice device);
 
-	const MediaDevice *media() const { return media_; }
+	std::shared_ptr<MediaDevice> media() const { return media_; }
 	uint32_t hwCapabilities() const { return hwCapabilities_; }
 	uint32_t apiVersion() const { return apiVersion_; }
+
+	bool isValid() const { return valid_; }
 
 	std::unique_ptr<V4L2Subdevice> isp_;
 	std::unique_ptr<V4L2VideoDevice> input0_;
@@ -90,12 +94,48 @@ private:
 		return "Neo[" + isp_->deviceNode() + "] ";
 	}
 
-	MediaDevice *media_ = nullptr;
-	std::map<VideoDevice, std::unique_ptr<V4L2VideoDevice> *> videos_;
+	std::map<VideoDevice, MediaEntity *> vdevEntities_;
+	MediaEntity *sdevEntity_;
 	std::vector<VideoDevice> configured_;
 
 	uint32_t hwCapabilities_ = 0;
 	uint32_t apiVersion_ = NEOISP_LEGACY_META_BUFFER;
+
+	std::shared_ptr<MediaDevice> media_;
+	bool valid_ = false;
+};
+
+class NeoMediaDevice
+{
+public:
+	NeoMediaDevice(std::shared_ptr<MediaDevice> media);
+	~NeoMediaDevice() = default;
+
+	std::unique_ptr<NeoDevice> createDevice();
+	std::shared_ptr<MediaDevice> media() const { return media_; }
+	bool isValid() const { return valid_; }
+
+private:
+	std::shared_ptr<MediaDevice> media_;
+	std::deque<MediaEntity *> subdevs_;
+	bool valid_ = false;
+};
+
+class NeoDeviceAllocator
+{
+public:
+	NeoDeviceAllocator(PipelineHandler *pipeline, DeviceEnumerator *enumerator);
+	std::unique_ptr<NeoDevice> createDevice();
+	const std::shared_ptr<MediaDevice> feMedia() { return feMedia_; }
+	bool isValid() const { return valid_; }
+
+private:
+	PipelineHandler *pipeline_;
+	DeviceEnumerator *enumerator_;
+	std::shared_ptr<MediaDevice> feMedia_;
+	std::unique_ptr<NeoMediaDevice> feNeoMediaDevice_;
+	std::vector<std::shared_ptr<MediaDevice>> legacyMedias_;
+	bool valid_ = false;
 };
 
 } /* namespace nxpneo */

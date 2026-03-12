@@ -251,7 +251,7 @@ public:
 
 	int queueRequestDevice(Request *request);
 
-	int init(DeviceEnumerator *enumerator);
+	int init(NeoDeviceAllocator *neoAllocator);
 	PipelineHandlerNxpNeo *pipe();
 
 	bool sensorIsRgbIr() const { return sensorIsRgbIr_; }
@@ -328,7 +328,6 @@ private:
 
 	std::unique_ptr<CameraSensor> sensor_;
 	std::map<ContextType, std::unique_ptr<NeoDevice>> neoDevices_;
-	std::map<ContextType, std::shared_ptr<MediaDevice>> neoMedia_;
 	const CameraInfo *cameraInfo_;
 	std::optional<Orientation> defaultOrientation_;
 	std::map<Size, std::vector<unsigned int>> formatsSizeToCodes_;
@@ -434,7 +433,7 @@ private:
 		return static_cast<NxpNeoCameraData *>(camera->_d());
 	}
 
-	int createCamera(MediaEntity *sensorEntity, DeviceEnumerator *enumerator);
+	int createCamera(MediaEntity *sensorEntity);
 
 	std::unique_ptr<CameraConfiguration> generateConfigurationRaw(
 		Camera *camera, Span<const StreamRole> roles);
@@ -455,6 +454,7 @@ private:
 	unsigned int numCamerasYuv_ = 0;
 	std::shared_ptr<ISIDevice> isi_;
 	std::shared_ptr<MediaDevice> isiMedia_;
+	std::unique_ptr<NeoDeviceAllocator> neoAllocator_;
 };
 
 namespace {
@@ -1224,21 +1224,27 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 	int ret;
 
 	/*
-	 * Prerequisite for pipeline operation is that frontend media controller
-	 * device is present.
+	 * Prerequisite for pipeline operation is that front-end media
+	 * controller device is present. Media device is acquired by the NEO
+	 * context allocator.
 	 */
-	DeviceMatch isi(ISIDevice::driverName());
-	isi.add(ISIDevice::crossbarSubdevName());
-
-	isiMedia_ = acquireMediaDevice(enumerator, isi);
-	if (!isiMedia_)
+	neoAllocator_ = std::make_unique<NeoDeviceAllocator>(this, enumerator);
+	if (!neoAllocator_->isValid()) {
+		LOG(NxpNeoPipe, Debug) << "Neo device allocator init failed";
 		return false;
+	}
+
+	isiMedia_ = neoAllocator_->feMedia();
+	if (!isiMedia_) {
+		LOG(NxpNeoPipe, Debug) << "Front-end media device not found";
+		return false;
+	}
 
 	isi_ = std::make_shared<ISIDevice>();
 	ret = isi_->init(isiMedia_.get());
 	if (ret) {
 		LOG(NxpNeoPipe, Debug) << "ISI media device init failed";
-		return false;
+		return ret;
 	}
 
 	ret = loadPipelineConfig();
@@ -1248,7 +1254,7 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 	/* Discover camera entities from the frontend media controller device. */
 	std::vector<MediaEntity *> sensorsEntities = locateSensors(isiMedia_.get());
 	for (MediaEntity *entity : sensorsEntities) {
-		ret = createCamera(entity, enumerator);
+		ret = createCamera(entity);
 		if (ret)
 			LOG(NxpNeoPipe, Warning) << "Failed to probe camera "
 						 << entity->name() << ": " << ret;
@@ -1291,8 +1297,7 @@ bool PipelineHandlerNxpNeo::acquireDevice(Camera *camera)
  * \brief Probe, configure and register camera sensor
  * \return 0 on success or a negative error code otherwise
  */
-int PipelineHandlerNxpNeo::createCamera(MediaEntity *sensorEntity,
-					DeviceEnumerator *enumerator)
+int PipelineHandlerNxpNeo::createCamera(MediaEntity *sensorEntity)
 {
 	int ret;
 
@@ -1312,7 +1317,7 @@ int PipelineHandlerNxpNeo::createCamera(MediaEntity *sensorEntity,
 	std::unique_ptr<NxpNeoCameraData> data =
 		std::make_unique<NxpNeoCameraData>(this, std::move(sensor), cameraInfo);
 
-	ret = data->init(enumerator);
+	ret = data->init(neoAllocator_.get());
 	if (ret)
 		return ret;
 
@@ -1868,7 +1873,7 @@ int NxpNeoCameraData::queueRequestDevice(Request *request)
  *
  * \return 0 on success or a negative error code otherwise
  */
-int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
+int NxpNeoCameraData::init(NeoDeviceAllocator *neoAllocator)
 {
 	/* Detect compatible raw or RGB/YUV formats */
 	isRawCamera_ = true;
@@ -1884,34 +1889,14 @@ int NxpNeoCameraData::init(DeviceEnumerator *enumerator)
 	}
 
 	if (isRawCamera_) {
-		/*
-		 * Acquire one ISP instance per active context. The associated
-		 * NeoDevice object unique instance number is arbitrarily bound
-		 * to its device node name /dev/mediaX.
-		 * The sensor RGBIr support information comes from the camHelper
-		 * so is not known before IPA initialization. Thus, the test for
-		 * the second context ISP reservation is deferred until after
-		 * IPA initialization.
-		 */
-		DeviceMatch dm(NeoDevice::driverName());
-		dm.add(NeoDevice::subdeviceName());
-		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Input0));
-		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Input1));
-		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Params));
-		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Frame));
-		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Ir));
-		dm.add(NeoDevice::videoDeviceName(NeoDevice::VideoDevice::Stats));
-
-		auto initNeoDevice =
-			[this, enumerator, &dm](ContextType context) {
-				std::shared_ptr<MediaDevice> &media = neoMedia_[context];
-				media = pipe()->acquireMediaDevice(enumerator, dm);
-				if (!media)
-					return -ENODEV;
-				std::unique_ptr<NeoDevice> &neo = neoDevices_[context];
-				neo = std::make_unique<NeoDevice>();
-				return neo->init(media.get());
-			};
+		auto initNeoDevice = [this, neoAllocator](ContextType context) {
+			std::unique_ptr<NeoDevice> &neo =
+				neoDevices_[context];
+			neo = neoAllocator->createDevice();
+			if (!neo || !neo->isValid())
+				return -ENODEV;
+			return 0;
+		};
 
 		if (initNeoDevice(ContextTypeRgb))
 			return -ENODEV;
