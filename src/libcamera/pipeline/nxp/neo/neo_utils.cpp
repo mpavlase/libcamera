@@ -227,7 +227,7 @@ int PipelineConfig::loadAutoDetect()
 {
 	int ret;
 
-	MediaDevice *media = isiDevice_->media_;
+	MediaDevice *media = isiDevice_->media().get();
 	if (!media)
 		return -EINVAL;
 

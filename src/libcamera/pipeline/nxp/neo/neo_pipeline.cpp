@@ -453,7 +453,6 @@ private:
 	unsigned int numCamerasRaw_ = 0;
 	unsigned int numCamerasYuv_ = 0;
 	std::shared_ptr<ISIDevice> isi_;
-	std::shared_ptr<MediaDevice> isiMedia_;
 	std::unique_ptr<NeoDeviceAllocator> neoAllocator_;
 };
 
@@ -1234,17 +1233,16 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 		return false;
 	}
 
-	isiMedia_ = neoAllocator_->feMedia();
-	if (!isiMedia_) {
+	std::shared_ptr<MediaDevice> isiMedia = neoAllocator_->feMedia();
+	if (!isiMedia) {
 		LOG(NxpNeoPipe, Debug) << "Front-end media device not found";
 		return false;
 	}
 
-	isi_ = std::make_shared<ISIDevice>();
-	ret = isi_->init(isiMedia_.get());
-	if (ret) {
+	isi_ = std::make_shared<ISIDevice>(isiMedia);
+	if (!isi_->isValid()) {
 		LOG(NxpNeoPipe, Debug) << "ISI media device init failed";
-		return ret;
+		return false;
 	}
 
 	ret = loadPipelineConfig();
@@ -1252,7 +1250,7 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 		return false;
 
 	/* Discover camera entities from the frontend media controller device. */
-	std::vector<MediaEntity *> sensorsEntities = locateSensors(isiMedia_.get());
+	std::vector<MediaEntity *> sensorsEntities = locateSensors(isiMedia.get());
 	for (MediaEntity *entity : sensorsEntities) {
 		ret = createCamera(entity);
 		if (ret)
@@ -1580,7 +1578,7 @@ int PipelineHandlerNxpNeo::setupRouting() const
 			<< " routing " << routing;
 
 		std::unique_ptr<V4L2Subdevice> sdev =
-			V4L2Subdevice::fromEntityName(isiDevice()->media_, name);
+			V4L2Subdevice::fromEntityName(isiDevice()->media().get(), name);
 		if (!sdev.get()) {
 			LOG(NxpNeoPipe, Error) << "Subdevice does not exist " << name;
 			return -EINVAL;

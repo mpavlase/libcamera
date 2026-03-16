@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -74,9 +75,7 @@ private:
 class ISIDevice
 {
 public:
-	ISIDevice() {}
-
-	int init(MediaDevice *media);
+	ISIDevice(std::shared_ptr<MediaDevice> media);
 
 	ISIPipe *reservePipe(unsigned int width);
 	void releasePipe(ISIPipe *pipe);
@@ -87,7 +86,8 @@ public:
 	unsigned int crossbarFirstSourcePad() const { return xbarSinkPads_; }
 	unsigned int crossbarSourcePads() const { return pipeEntries_.size(); }
 
-	MediaDevice *media_ = nullptr;
+	std::shared_ptr<MediaDevice> media() const { return media_; }
+	bool isValid() const { return valid_; }
 
 private:
 	struct PipeWrapper {
@@ -101,6 +101,9 @@ private:
 	std::vector<PipeWrapper> pipeEntries_;
 	std::unique_ptr<V4L2Subdevice> crossbar_;
 	unsigned int xbarSinkPads_ = 0;
+
+	std::shared_ptr<MediaDevice> media_;
+	bool valid_ = false;
 };
 
 } /* namespace nxpneo */

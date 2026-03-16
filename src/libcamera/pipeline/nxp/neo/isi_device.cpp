@@ -500,32 +500,30 @@ const V4L2PixelFormat ISIPipe::mbusCodeToPixelFormatBypass(unsigned int code)
  */
 
 /**
- * \brief Initialize the ISI device and discover its capabilities
+ * \brief Construct and initialize the ISI device
  * \param[in] media The media device containing the ISI entities
  *
- * This function initializes the ISI device by discovering and configuring its
- * components from the provided media device.
+ * This constructor initializes the ISI device by discovering and configuring
+ * its components from the provided media device.
  *
- * The crossbar sink pads represent the input interfaces to the ISI device,
- * while the remaining pads correspond to the ISI processing pipes. Each pipe
- * is initialized and stored for later use.
- *
- * \return 0 on success, -ENODEV if the crossbar subdevice is not found, if no
- * sink pads are detected, if pipe enumeration fails, or a negative error code
- * if opening the crossbar or initializing pipes fails
+ * It opens the crossbar subdevice, discovers the number of sink pads which
+ * represent the input interfaces to the ISI device, and enumerates the ISI
+ * processing pipes. Each pipe is initialized and stored for later use.
  */
-int ISIDevice::init(MediaDevice *media)
+ISIDevice::ISIDevice(std::shared_ptr<MediaDevice> media)
+	: media_(media), valid_(false)
 {
-	int ret;
+	if (!media_) {
+		LOG(NxpNeoIsiDev, Error) << "Invalid media device";
+		return;
+	}
 
-	media_ = media;
-
-	crossbar_ = V4L2Subdevice::fromEntityName(media, crossbarSubdevName());
+	crossbar_ = V4L2Subdevice::fromEntityName(media.get(), crossbarSubdevName());
 	if (!crossbar_)
-		return -ENODEV;
-	ret = crossbar_->open();
+		return;
+	int ret = crossbar_->open();
 	if (ret)
-		return ret;
+		return;
 
 	/*
 	 * Discover the number of sink pads
@@ -538,7 +536,7 @@ int ISIDevice::init(MediaDevice *media)
 	}
 	if (!xbarSinkPads_) {
 		LOG(NxpNeoIsiDev, Error) << "No sink pads detected";
-		return -ENODEV;
+		return;
 	} else {
 		LOG(NxpNeoIsiDev, Debug) << xbarSinkPads_ << " sink pads detected";
 	}
@@ -551,19 +549,18 @@ int ISIDevice::init(MediaDevice *media)
 	pipeEntries_.reserve(pipeCount);
 	for (unsigned int i = 0; i < pipeCount; ++i) {
 		PipeWrapper wrapper(i);
-		if (wrapper.pipe.init(media))
-			return -ENODEV;
+		if (wrapper.pipe.init(media.get()))
+			return;
 		pipeEntries_.push_back(std::move(wrapper));
 	}
 
 	if (pipeEntries_.empty()) {
 		LOG(NxpNeoIsiDev, Error) << "Unable to enumerate pipes";
-		return -ENODEV;
-	} else {
-		LOG(NxpNeoIsiDev, Debug) << pipeEntries_.size() << " pipes enumerated";
+		return;
 	}
 
-	return 0;
+	LOG(NxpNeoIsiDev, Debug) << pipeEntries_.size() << " pipes enumerated";
+	valid_ = true;
 }
 
 /**
@@ -584,6 +581,9 @@ ISIPipe *ISIDevice::reservePipe(unsigned int width)
 {
 	bool chained = false;
 	ISIPipe *pipe = nullptr;
+
+	if (!valid_)
+		return nullptr;
 
 	if (width > ISIPipe::kChainedWidthMax) {
 		LOG(NxpNeoIsiDev, Error)
@@ -641,6 +641,9 @@ ISIPipe *ISIDevice::reservePipe(unsigned int width)
  */
 void ISIDevice::releasePipe(ISIPipe *pipe)
 {
+	if (!valid_)
+		return;
+
 	auto it = std::find_if(pipeEntries_.begin(), pipeEntries_.end(),
 			       [pipe](const PipeWrapper &entry) {
 				       return &entry.pipe == pipe;
