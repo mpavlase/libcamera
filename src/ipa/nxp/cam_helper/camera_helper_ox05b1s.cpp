@@ -100,6 +100,14 @@ void CameraHelperOx05b1s::controlListSetAGC(
 	 */
 	return CameraHelper::controlListSetAGC(ctrls, exposures, gains);
 #else
+	if (exposures.empty() || gains.empty())
+		return;
+
+	if (exposures.size() != 2 || gains.size() != 2) {
+		LOG(NxpCameraHelper, Error) << "Exposure and gain values should be 2.";
+		return;
+	}
+
 	/*
 	 * The multi-capture controls will be enabled in RGBIr dual mode when
 	 * the sensor driver will have proper context switch operation.
@@ -107,8 +115,6 @@ void CameraHelperOx05b1s::controlListSetAGC(
 	std::array<uint32_t, 2> exposureLines;
 	std::array<uint32_t, 2> gainCodes;
 	Duration lineLength = hblankToLineLength(mode_.hblank);
-	ASSERT(exposures.size() == 2);
-	ASSERT(gains.size() == 2);
 	for (size_t i = 0; i < 2; i++) {
 		exposureLines[i] = CameraHelper::exposureLines(exposures[i],
 							       lineLength);

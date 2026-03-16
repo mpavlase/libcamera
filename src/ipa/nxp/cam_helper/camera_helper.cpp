@@ -229,11 +229,16 @@ void CameraHelper::sensorControlList(const ControlList *sensorCtrls)
  * a proprietary programming model.
  * The span used for the exposures and gains provides a set of values
  * for multiple contexts (such as RGBIr dual mode with RGB and Ir contexts).
+ * If the span is empty for either the exposures or the gains, the function
+ * is not updating the sensor control list.
  */
 void CameraHelper::controlListSetAGC(
 	ControlList *ctrls,
 	Span<const Duration> exposures, Span<const double> gains)
 {
+	if (exposures.empty() || gains.empty())
+		return;
+
 	ctrls->set(V4L2_CID_ANALOGUE_GAIN, static_cast<int32_t>(gainCode(gains[0])));
 
 	int32_t lines = exposureLines(exposures[0], hblankToLineLength(mode_.hblank));

@@ -520,6 +520,9 @@ void CameraHelperMx95mbcam::controlListSetAGC(
 	ControlList *ctrls,
 	Span<const Duration> exposures, Span<const double> gains)
 {
+	if (exposures.empty() || gains.empty())
+		return;
+
 	const uint32_t sensorConversionRatio = calcConvRatio(convGainQ16_);
 
 	uint64_t lAgainL, lAgainS, lAgainSPD, lAgainVS;

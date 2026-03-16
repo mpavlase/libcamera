@@ -136,6 +136,9 @@ void CameraHelperOs08a20::controlListSetAGC(
 
 	/* In HDR mode, the multi-capture controls are used. */
 
+	if (exposures.empty() || gains.empty())
+		return;
+
 	/* Exposure time and gain provided by AGC apply to long capture. */
 	uint32_t expRowsLong = exposureLines(exposures[0], hblankToLineLength(mode_.hblank));
 	double aGainLong = gains[0];
