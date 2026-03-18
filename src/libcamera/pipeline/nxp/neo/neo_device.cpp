@@ -153,7 +153,7 @@ const std::string kVDevEntityStatsRe = "^neoisp-stats" + kEntitySuffixRe;
 /* NEO ISP driver name. */
 const std::string kNeoDriverName = "neoisp";
 
-/* ISI front-end driver name.*/
+/* ISI front-end driver name. */
 const std::string kIsiDriverName = "mxc-isi";
 
 } /* namespace */
@@ -185,7 +185,7 @@ const std::string kIsiDriverName = "mxc-isi";
  * is marked as invalid.
  */
 NeoDevice::NeoDevice(std::shared_ptr<MediaDevice> media, MediaEntity *subdevEntity)
-	: media_(media), valid_(false)
+	: hwCapabilities_(0), apiVersion_(NEOISP_LEGACY_META_BUFFER), media_(media), valid_(false)
 {
 	if (!media || !subdevEntity)
 		return;

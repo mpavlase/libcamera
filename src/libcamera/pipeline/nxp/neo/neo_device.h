@@ -98,11 +98,11 @@ private:
 	MediaEntity *sdevEntity_;
 	std::vector<VideoDevice> configured_;
 
-	uint32_t hwCapabilities_ = 0;
-	uint32_t apiVersion_ = NEOISP_LEGACY_META_BUFFER;
+	uint32_t hwCapabilities_;
+	uint32_t apiVersion_;
 
 	std::shared_ptr<MediaDevice> media_;
-	bool valid_ = false;
+	bool valid_;
 };
 
 class NeoMediaDevice
