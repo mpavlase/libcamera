@@ -4,7 +4,7 @@
  * integrated part of the linux kernel UAPI nxp_neoisp.h
  *
  * nxp-neoisp-enums.h - NXP NEO ISP enum values
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  */
 
 #pragma once
@@ -145,6 +145,22 @@ using ObwbArray = std::array<T, kObwbInstancesCount>;
 
 #define NEO_AF_BLOCK_NB_X 3
 #define NEO_AF_BLOCK_NB_Y 3
+
+/**
+ * enum neo_isp_hdr_merge_bpp -  size of pixel components definition for
+ *                               the HDR merge unit.
+ *
+ * @NEO_HDR_MERGE_BPP_12BPP:	12 bpp
+ * @NEO_HDR_MERGE_BPP_14BPP:	14 bpp
+ * @NEO_HDR_MERGE_BPP_16BPP:	16 bpp
+ * @NEO_HDR_MERGE_BPP_20BPP:	20 bpp
+ */
+enum neo_isp_hdr_merge_bpp {
+	NEO_HDR_MERGE_BPP_12BPP = 0,
+	NEO_HDR_MERGE_BPP_14BPP = 1,
+	NEO_HDR_MERGE_BPP_16BPP = 2,
+	NEO_HDR_MERGE_BPP_20BPP = 3,
+};
 
 } /* namespace ipa::nxpneo */
 
