@@ -215,6 +215,34 @@ const GlobalInfo &PipelineConfig::globalInfo() const
 }
 
 /**
+ * \brief Get the camera properties for a given camera name or model
+ * \param[in] name The name of the camera media device entity
+ * \param[in] model The model name of the camera sensor
+ *
+ * This function retrieves the CameraProperties structure associated with a
+ * camera, giving precedence to name-based lookup over model-based lookup.
+ * If neither the name nor the model is found in the properties map, a new
+ * default CameraProperties entry is created and inserted for the model.
+ *
+ * \return A reference to the CameraProperties structure
+ */
+const CameraProperties &
+PipelineConfig::cameraProperties(const std::string &name,
+				 const std::string &model)
+
+{
+	auto itName = camPropertiesMap_.find(name);
+	if (itName != camPropertiesMap_.end())
+		return itName->second;
+	auto itModel = camPropertiesMap_.find(model);
+	if (itModel != camPropertiesMap_.end())
+		return itModel->second;
+	const auto [it, inserted] =
+		camPropertiesMap_.emplace(model, CameraProperties{});
+	return it->second;
+}
+
+/**
  * \brief Discover the valid camera graphs to the capture video device
  *
  * For every camera sensor in the media device, look for valid media links paths
@@ -307,17 +335,9 @@ int PipelineConfig::loadAutoDetect()
 			continue;
 		}
 
-		/*
-		 * Store the reference to the properties associated to that
-		 * camera. Give precedence to the name-based over model-based
-		 * properties because it is more specialized.
-		 */
 		const std::string &name = sensor->entity()->name();
 		const std::string &model = sensor->model();
-		if (namePropertiesMap_.count(name))
-			cameraInfo.properties_ = &namePropertiesMap_[name];
-		else
-			cameraInfo.properties_ = &modelPropertiesMap_[model];
+		cameraInfo.properties_ = &cameraProperties(name, model);
 
 		/* Select max sensor resolution compatible with an ISI pipe. */
 		Size sizeMax;
@@ -543,21 +563,21 @@ int PipelineConfig::parseCameras(const YamlObject &cameras)
 		}
 
 		if (model.length()) {
-			if (modelPropertiesMap_.count(model)) {
+			if (camPropertiesMap_.count(model)) {
 				LOG(NxpNeoPipe, Warning) <<
 					"Duplicate camera model " << model;
 				continue;
 			}
-			modelPropertiesMap_[model] = properties;
+			camPropertiesMap_[model] = properties;
 		}
 
 		if (entity.length()) {
-			if (namePropertiesMap_.count(entity)) {
+			if (camPropertiesMap_.count(entity)) {
 				LOG(NxpNeoPipe, Warning) <<
 					"Duplicate camera entity " << entity;
 				continue;
 			}
-			namePropertiesMap_[entity] = properties;
+			camPropertiesMap_[entity] = properties;
 		}
 	}
 

@@ -104,6 +104,8 @@ public:
 	const CameraInfo *cameraInfo(const std::string &name) const;
 	const RoutingMap &routingMap() const;
 	const GlobalInfo &globalInfo() const;
+	const CameraProperties &cameraProperties(const std::string &name,
+						 const std::string &model);
 
 private:
 	static constexpr unsigned int kPadAny =
@@ -120,9 +122,7 @@ private:
 	RoutingMap routingMap_;
 	CameraMap cameraMap_;
 	std::shared_ptr<ISIDevice> isiDevice_;
-
-	std::map<std::string, CameraProperties> namePropertiesMap_;
-	std::map<std::string, CameraProperties> modelPropertiesMap_;
+	std::map<std::string, CameraProperties> camPropertiesMap_;
 
 	/* Configuration file routes sequence elements */
 	enum {
