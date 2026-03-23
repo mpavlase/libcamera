@@ -3,6 +3,8 @@
 subdir('data')
 
 libcamera_internal_sources += files([
+    'front_end.cpp',
+    'front_end_isi.cpp',
     'isi_device.cpp',
     'media_graph.cpp',
     'neo_device.cpp',
