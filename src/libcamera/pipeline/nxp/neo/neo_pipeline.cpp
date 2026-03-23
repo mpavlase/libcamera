@@ -236,8 +236,8 @@ class NxpNeoCameraData : public Camera::Private
 {
 public:
 	NxpNeoCameraData(PipelineHandler *pipe,
-			 FrontEnd *frontEnd,
-			 FECamera *feCamera)
+			 FrontEndHandler *frontEnd,
+			 FrontEndCamera *feCamera)
 		: Camera::Private(pipe),
 		  frameInfos_(this),
 		  frontEnd_(frontEnd),
@@ -258,12 +258,12 @@ public:
 
 	/*
 	 * Accessors to camera data used by the pipeline handler class
-	 * in order to to handle the CameraConfiguration ops.
+	 * in order to handle the CameraConfiguration ops.
 	 */
-	const FECamera *feCamera() const { return feCamera_; };
+	const FrontEndCamera *feCamera() const { return feCamera_; };
 	const CameraSensor *sensor() const { return feCamera_->sensor(); }
 	const std::string &cameraName() const { return feCamera_->name(); }
-	const FECamera::Attributes &feAttributes() const { return feCamera_->attributes(); }
+	const FrontEndCamera::Attributes &feAttributes() const { return feCamera_->attributes(); }
 
 	bool sensorIsRgbIr() const { return feAttributes().rgbIrCfa; }
 	bool isRawCamera() const { return !feAttributes().ispBypass; }
@@ -279,7 +279,7 @@ public:
 	}
 
 	NeoDevice *neoDevice(ContextType context = ContextTypeRgb) const;
-	FrontEnd *frontEnd() const { return frontEnd_; }
+	FrontEndHandler *frontEnd() const { return frontEnd_; }
 
 	bool rawStreamOnly_ = false;
 
@@ -340,8 +340,8 @@ private:
 	unsigned int sequence_ = 0;
 	unsigned int embeddedTopLines_ = 0;
 
-	FrontEnd *frontEnd_;
-	FECamera *feCamera_;
+	FrontEndHandler *frontEnd_;
+	FrontEndCamera *feCamera_;
 	std::map<ContextType, NeoDevice *> neoDevices_;
 
 	std::vector<ContextType> contexts_;
@@ -430,7 +430,7 @@ private:
 		return static_cast<NxpNeoCameraData *>(camera->_d());
 	}
 
-	int createCamera(FrontEnd *fe, FECamera *feCamera);
+	int createCamera(FrontEndHandler *fe, FrontEndCamera *feCamera);
 
 	std::unique_ptr<CameraConfiguration> generateConfigurationRaw(
 		Camera *camera, Span<const StreamRole> roles);
@@ -441,7 +441,7 @@ private:
 
 	PipelineConfig pipelineConfig_;
 
-	std::vector<std::unique_ptr<FrontEnd>> frontEnds_;
+	std::vector<std::unique_ptr<FrontEndHandler>> frontEnds_;
 	std::unique_ptr<NeoDeviceAllocator> neoAllocator_;
 };
 
@@ -1240,7 +1240,7 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 	}
 
 	unsigned int totalCount = 0;
-	FrontEnd::MatchContext feMatchContext{
+	FrontEndHandler::MatchParams feMatchParams{
 		.pipeline = this,
 		.enumerator = enumerator,
 		.neoAllocator = neoAllocator_.get(),
@@ -1248,15 +1248,15 @@ bool PipelineHandlerNxpNeo::match(DeviceEnumerator *enumerator)
 	};
 
 	/* Match all the registered front-end handlers. */
-	const std::vector<FrontEndFactoryBase *> &factories =
-		FrontEndFactoryBase::factories();
-	for (const FrontEndFactoryBase *factory : factories) {
+	const std::vector<FrontEndHandlerFactoryBase *> &factories =
+		FrontEndHandlerFactoryBase::factories();
+	for (const FrontEndHandlerFactoryBase *factory : factories) {
 		LOG(NxpNeoPipe, Debug)
 			<< "Found registered front-end '"
 			<< factory->name() << "'";
 
-		std::unique_ptr<FrontEnd> fe = factory->create();
-		if (!fe->match(feMatchContext))
+		std::unique_ptr<FrontEndHandler> fe = factory->create();
+		if (!fe->match(feMatchParams))
 			continue;
 		unsigned int cameraCount = 0;
 		for (auto const &feCamera : fe->cameras()) {
@@ -1284,13 +1284,14 @@ bool PipelineHandlerNxpNeo::acquireDevice(Camera *camera)
 	LOG(NxpNeoPipe, Debug) << "acquireDevice " << data->cameraName()
 			       << " count " << useCount();
 
-	const FECamera *feCamera = data->feCamera();
-	FrontEnd *frontEnd = data->frontEnd();
+	const FrontEndCamera *feCamera = data->feCamera();
+	FrontEndHandler *frontEnd = data->frontEnd();
 	int ret = frontEnd->acquireDevice(feCamera->name());
 	return !ret;
 }
 
-int PipelineHandlerNxpNeo::createCamera(FrontEnd *fe, FECamera *feCamera)
+int PipelineHandlerNxpNeo::createCamera(FrontEndHandler *fe,
+					FrontEndCamera *feCamera)
 {
 	/* CameraData instance creation */
 	std::unique_ptr<NxpNeoCameraData> data =
@@ -1779,7 +1780,7 @@ int NxpNeoCameraData::init()
 	int ret = 0;
 
 	/* Pipeline mode selection. */
-	FECamera::Attributes attributes;
+	FrontEndCamera::Attributes attributes;
 	if (isRawCamera()) {
 		if (feCamera_->hasStream(FEStream::Image1))
 			mode_ = sensorIsRgbIr()

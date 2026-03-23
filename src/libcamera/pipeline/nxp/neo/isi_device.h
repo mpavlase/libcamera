@@ -39,15 +39,8 @@ public:
 	int configure(V4L2SubdeviceFormat &sinkFormat,
 		      V4L2DeviceFormat &videoFormat);
 
-	int start();
-	int stop();
-
 	const std::string &subdeviceName() const { return subdeviceName_; }
 	const std::string &videoDeviceName() const { return videoDeviceName_; }
-
-	int allocateBuffers(unsigned int bufferCount);
-	int importBuffers(unsigned int bufferCount);
-	void freeBuffers();
 
 	unsigned int index() const { return index_; };
 
@@ -58,7 +51,6 @@ public:
 	static const V4L2PixelFormat mbusCodeToPixelFormatBypass(unsigned int code);
 
 	std::unique_ptr<V4L2VideoDevice> capture_;
-	std::vector<std::unique_ptr<FrameBuffer>> captureBuffers_;
 
 private:
 	std::string logPrefix() const

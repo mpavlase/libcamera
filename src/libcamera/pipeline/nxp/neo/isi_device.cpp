@@ -163,44 +163,6 @@ int ISIPipe::init(const MediaDevice *media)
 }
 
 /**
- * \brief Start the ISI channel capture video device
- *
- * Initiates streaming on the ISI pipe's capture video device by calling
- * streamOn(). This enables the video device to begin capturing frames.
- *
- * \return 0 on success or a negative error code otherwise
- */
-int ISIPipe::start()
-{
-	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Start";
-	int ret = capture_->streamOn();
-	if (ret) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix() << "Failed to start";
-	}
-	return ret;
-}
-
-/**
- * \brief Stop the ISI channel capture video device
- *
- * Stops streaming on the ISI pipe's capture video device by calling
- * streamOff(). This disables the video device from capturing frames.
- *
- * \return 0 on success or a negative error code otherwise
- */
-int ISIPipe::stop()
-{
-	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Stop";
-	int ret = capture_->streamOff();
-	if (ret) {
-		LOG(NxpNeoIsiDev, Error)
-			<< logPrefix() << "Failed to stop";
-	}
-	return ret;
-}
-
-/**
  * \brief Configure the ISI channel subdevice and video node formats
  * \param[inout] sinkFormat The format applied to the subdevice sink pad
  * \param[inout] deviceFormat The format applied to the video device
@@ -338,68 +300,6 @@ int ISIPipe::configure(V4L2SubdeviceFormat &sinkFormat,
  * \brief Get the video device entity name
  * \return The video device entity name
  */
-
-/**
- * \brief Allocate buffers for ISI channel
- * \param[in] bufferCount The number of buffers to allocate
- *
- * Allocates and exports buffers from the ISI pipe's capture video device,
- * and prepare the buffer management for import. The allocated buffers are
- * stored in the captureBuffers_ member for later use.
- *
- * \return 0 on success or a negative error code otherwise
- */
-int ISIPipe::allocateBuffers(unsigned int bufferCount)
-{
-	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Allocate buffers " << bufferCount;
-	int ret = capture_->exportBuffers(bufferCount, &captureBuffers_);
-	if (ret < 0) {
-		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to export buffers";
-		return ret;
-	}
-
-	return importBuffers(bufferCount);
-}
-
-/**
- * \brief Import buffers for ISI channel
- * \param[in] bufferCount The number of buffers to import
- *
- * Prepare the buffer management to import some buffers that have been allocated
- * by some dmabuf provider.
- *
- * \return 0 on success or a negative error code otherwise
- */
-int ISIPipe::importBuffers(unsigned int bufferCount)
-{
-	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Import buffers " << bufferCount;
-	int ret = capture_->importBuffers(bufferCount);
-	if (ret < 0) {
-		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to import buffers";
-		freeBuffers();
-	}
-
-	return ret;
-}
-
-/**
- * \brief Release resources allocated by allocateBuffers() or importBuffers
- *
- * Releases all buffers that were previously allocated or imported for the ISI
- * pipe's capture video device. This function clears the internal buffer storage
- * (captureBuffers_) and releases the buffers from the V4L2 video device.
- *
- * This function should be called to clean up resources when the ISI pipe is no
- * longer in use or when reconfiguring the buffer pool.
- */
-void ISIPipe::freeBuffers()
-{
-	LOG(NxpNeoIsiDev, Debug) << logPrefix() << "Free buffers";
-	captureBuffers_.clear();
-
-	if (capture_->releaseBuffers())
-		LOG(NxpNeoIsiDev, Error) << logPrefix() << "failed to free buffers";
-}
 
 /**
  * \brief Return the supported bayer codes on the pipe pads of a bypass channel
