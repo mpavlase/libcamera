@@ -1,8 +1,12 @@
 
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Based on RkISP1 Gamma Out Control algorithm
+ *     src/ipa/rkisp1/algorithms/goc.cpp
+ * Copyright (C) 2024, Ideas On Board
+ *
  * goc.cpp NXP NEO Gamma out control
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #include "goc.h"
@@ -156,6 +160,7 @@ int GammaOutCorrection::init([[maybe_unused]] IPAContext &context,
 {
 	/* Get the gamma value from tuning file. */
 	gamma_ = tuningData["gamma"].get<float>();
+	context.ctrlMap[&controls::Gamma] = ControlInfo(0.5f, 10.0f, 2.2f);
 
 	if (gamma_.has_value())
 		LOG(NxpNeoAlgoGoc, Debug) << "Configured gamma: " << gamma_.value();

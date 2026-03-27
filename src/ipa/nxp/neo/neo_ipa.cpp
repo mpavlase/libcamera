@@ -115,15 +115,6 @@ const std::map<const IPAModeType, SensorStreamModes> IPANxpNeo::kSensorStreamMod
 	{ IPAModeTypeRgbIrDual, SensorStreamDualContext },
 };
 
-namespace {
-
-/* Default IPA controls */
-const ControlInfoMap::Map ipaDefaultControls{
-	{ &controls::Gamma, ControlInfo(0.5f, 10.0f, 2.2f) },
-};
-
-} /* namespace */
-
 IPANxpNeo::IPANxpNeo()
 	: context_(kMaxFrameContexts)
 {
@@ -532,7 +523,7 @@ void IPANxpNeo::updateControls(const IPACameraSensorInfo &sensorInfo,
 			       const ControlInfoMap &sensorControls,
 			       ControlInfoMap *ipaControls)
 {
-	ControlInfoMap::Map ctrlMap = ipaDefaultControls;
+	ControlInfoMap::Map ctrlMap;
 	auto &sensorConfig = context_.configuration.sensor;
 
 	/* ExposureTime range is in microseconds */
