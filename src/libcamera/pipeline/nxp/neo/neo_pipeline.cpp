@@ -903,77 +903,123 @@ CameraConfiguration::Status NxpNeoCameraConfiguration::validateRaw()
 	 * Work out the sensor format to be used. When a raw stream is specified
 	 * its pixel output format defines explicitly the sensor bit depth and
 	 * size. Thus, the raw stream configuration is checked first to find a
-	 * possible match with the sensor format capabilities.
+	 * possible match with the sensor format and size capabilities.
 	 * If sensor format has not been resolved from the raw stream, check for
 	 * every stream configured if the requested size can be provided by the
-	 * sensor then derive a working code for that size.
+	 * sensor, then derive a working code for that size.
 	 * If none of the streams is configured with a size supported with that
 	 * sensor, fall back onto selecting arbitrarily the highest size and the
 	 * associated mbus code with the highest bit depth.
 	 */
-	Size sensorSize;
-	unsigned int sensorMbusCode;
-	bool sensorFormatFound = false;
-
 	const std::map<unsigned int, std::vector<Size>> &codeToSizes =
 		data_->formatsCodeToSizes();
 	const std::vector<unsigned int> sensorCodes = utils::map_keys(codeToSizes);
-	if (rawCount) {
-		auto rawConfigIt = std::find_if(
-			config_.begin(), config_.end(),
-			[=](StreamConfiguration &cfg) { return cfg.stream() == streamRaw; });
-		ASSERT(rawConfigIt != config_.end());
-		uint8_t bitDepthConfig =
-			BayerFormat::fromPixelFormat(rawConfigIt->pixelFormat).bitDepth;
+
+	std::optional<V4L2SubdeviceFormat> sensorFormat;
+	const auto rawConfigIt = std::find_if(
+		config_.begin(), config_.end(),
+		[=](StreamConfiguration &cfg) { return cfg.stream() == streamRaw; });
+	if (rawConfigIt != config_.end()) {
+		/*
+		 * There is a raw stream: look for a corresponding mbus code
+		 * that matches that pixel format and size.
+		 */
+		const StreamConfiguration &rawConfig = *rawConfigIt;
+		const BayerFormat &bayerConfig =
+			BayerFormat::fromPixelFormat(rawConfig.pixelFormat);
 		auto rawCodeIt = std::find_if(
 			sensorCodes.begin(), sensorCodes.end(),
-			[=](unsigned int code) {
-				uint8_t bitDepth = BayerFormat::fromMbusCode(code).bitDepth;
-				return bitDepth == bitDepthConfig;
+			[&bayerConfig](unsigned int code) {
+				const BayerFormat &bayerCode =
+					BayerFormat::fromMbusCode(code);
+				return bayerCode == bayerConfig;
 			});
 		if (rawCodeIt != sensorCodes.end()) {
 			unsigned int code = *rawCodeIt;
 			const std::vector<Size> &sizes = codeToSizes.at(code);
 			if (std::find(sizes.begin(), sizes.end(),
-				      rawConfigIt->size) != sizes.end()) {
-				sensorSize = rawConfigIt->size;
-				sensorMbusCode = code;
-				sensorFormatFound = true;
+				      rawConfig.size) != sizes.end()) {
+				sensorFormat = {
+					.code = code,
+					.size = rawConfig.size,
+					.colorSpace = std::nullopt,
+				};
 			}
 		}
 	}
 
-	if (!sensorFormatFound) {
-		const std::map<Size, std::vector<unsigned int>> &sizeToCodes =
-			data_->formatsSizeToCodes();
-		const std::vector<Size> sensorSizes = utils::map_keys(sizeToCodes);
-		auto anyConfig =
-			std::find_if(
-				config_.begin(), config_.end(),
-				[&sensorSizes](StreamConfiguration &cfg) {
-					return std::find(sensorSizes.begin(),
-							 sensorSizes.end(),
-							 cfg.size) != sensorSizes.end();
+	const std::map<Size, std::vector<unsigned int>> &sizeToCodes =
+		data_->formatsSizeToCodes();
+	const std::vector<Size> sensorSizes = utils::map_keys(sizeToCodes);
+
+	if (!sensorFormat.has_value()) {
+		/*
+		 * Look for a sensor format that matches any StreamConfig size.
+		 * For non-raw streams, the sensor format is adjusted to crop
+		 * the embedded top lines if any, before comparing the sensor
+		 * and the config sizes.
+		 */
+		for (const auto &config : config_) {
+			bool isRaw = config.stream() == streamRaw;
+			auto sizeIt = std::find_if(
+				sensorSizes.begin(), sensorSizes.end(),
+				[this, &config, isRaw](Size size) {
+					if (!isRaw)
+						data_->adjustTopLinesSize(&size);
+					return size == config.size;
 				});
-		if (anyConfig != config_.end()) {
-			sensorSize = anyConfig->size;
-		} else {
-			ASSERT(sensorSizes.size());
-			sensorSize = sensorSizes.back();
+
+			if (sizeIt == sensorSizes.end())
+				continue;
+
+			const Size &size = *sizeIt;
+			if (sizeToCodes.at(size).empty())
+				continue;
+
+			unsigned int code = sizeToCodes.at(size).back();
+			sensorFormat = {
+				.code = code,
+				.size = size,
+				.colorSpace = std::nullopt,
+			};
+			break;
 		}
-		const std::vector<unsigned int> &codes = sizeToCodes.at(sensorSize);
-		ASSERT(codes.size());
-		sensorMbusCode = codes.back();
 	}
 
-	/* Cache sensor format for later usage by configure() */
-	sensorFormat_ = {};
-	sensorFormat_.code = sensorMbusCode;
-	sensorFormat_.size = sensorSize;
+	if (!sensorFormat.has_value()) {
+		/*
+		 * Fallback: select the highest resolution and the associated
+		 * mbus code with the largest bit depth.
+		 */
+		if (sizeToCodes.empty() || sizeToCodes.rbegin()->second.empty()) {
+			LOG(NxpNeoPipe, Error) << "No sensor formats available";
+			return Invalid;
+		}
+		const auto &[size, codes] = *sizeToCodes.rbegin();
+		unsigned int bpp = 0;
+		unsigned int code = 0;
+		for (unsigned int c : codes) {
+			const BayerFormat &bayerFormat =
+				BayerFormat::fromMbusCode(c);
+			if (bayerFormat.bitDepth > bpp) {
+				bpp = bayerFormat.bitDepth;
+				code = c;
+			}
+		}
+
+		sensorFormat = {
+			.code = code,
+			.size = size,
+			.colorSpace = std::nullopt,
+		};
+	}
+
+	/* Cache sensor format for later usage by configure(). */
+	sensorFormat_ = sensorFormat.value();
 	LOG(NxpNeoPipe, Debug) << "Sensor format " << sensorFormat_.toString();
 
-	Size pixelSize(sensorSize);
-	data_->adjustTopLinesSize(&pixelSize);
+	Size ispStreamSize(sensorFormat_.size);
+	data_->adjustTopLinesSize(&ispStreamSize);
 
 	for (unsigned int i = 0; i < config_.size(); ++i) {
 		const StreamConfiguration originalCfg = config_[i];
@@ -1005,6 +1051,7 @@ CameraConfiguration::Status NxpNeoCameraConfiguration::validateRaw()
 					cfg->pixelFormat = formats::R8;
 				device = neo->ir_.get();
 			}
+			cfg->size = ispStreamSize;
 
 			V4L2DeviceFormat format = {};
 			format.size = cfg->size;
@@ -1034,7 +1081,7 @@ CameraConfiguration::Status NxpNeoCameraConfiguration::validateRaw()
 			const BayerFormat &bayerFormat =
 				BayerFormat::fromMbusCode(sensorFormat_.code);
 			cfg->pixelFormat = bayerFormat.toPixelFormat();
-			cfg->size = sensorSize;
+			cfg->size = sensorFormat_.size;
 			cfg->colorSpace = ColorSpace::Raw;
 			const PixelFormatInfo &info =
 				PixelFormatInfo::info(cfg->pixelFormat);
