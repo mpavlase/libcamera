@@ -121,8 +121,8 @@ struct IPAActiveState {
 			double gain;
 		} automatic;
 
-		uint32_t constraintMode;
-		uint32_t exposureMode;
+		controls::AeConstraintModeEnum constraintMode;
+		controls::AeExposureModeEnum exposureMode;
 		bool autoEnabled;
 	};
 	std::map<IPAContextType, agc> agcs;

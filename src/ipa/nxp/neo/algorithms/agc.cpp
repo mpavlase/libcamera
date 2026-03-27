@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <tuple>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
@@ -150,8 +151,9 @@ void Agc::queueRequest(IPAContext &context,
 	for (auto &[contextType, agc] : context.activeState.agcs) {
 		agc.autoEnabled = autoEnabled;
 		if (exposure && !autoEnabled) {
-			agc.manual.exposure = *exposure * 1.0us
-				    / context.configuration.sensor.lineDuration;
+			agc.manual.exposure =
+				*exposure * 1.0us /
+				context.configuration.sensor.lineDuration;
 			LOG(NxpNeoAlgoAgc, Debug)
 				<< "Context" << contextType
 				<< " Set exposure to " << agc.manual.exposure;
@@ -206,6 +208,9 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 				       agcSensor.exposure;
 	metadata.set(controls::AnalogueGain, agcSensor.gain);
 	metadata.set(controls::ExposureTime, exposureTime.get<std::micro>());
+
+	auto &agcFrameContext = frameContext.agcs.at(frameContext.contextType);
+	metadata.set(controls::AeEnable, agcFrameContext.autoEnabled);
 
 	/* \todo Use VBlank value calculated from each frame exposure. */
 	uint32_t vTotal = context.configuration.sensor.size.height +
@@ -298,8 +303,12 @@ void AgcStats::configure(IPAContext &context)
 	agcActiveState.manual.gain = agcActiveState.automatic.gain;
 	agcActiveState.manual.exposure = agcActiveState.automatic.exposure;
 	agcActiveState.autoEnabled = true;
-	agcActiveState.constraintMode = constraintModes().begin()->first;
-	agcActiveState.exposureMode = exposureModeHelpers().begin()->first;
+	agcActiveState.constraintMode =
+		static_cast<controls::AeConstraintModeEnum>(
+			constraintModes().begin()->first);
+	agcActiveState.exposureMode =
+		static_cast<controls::AeExposureModeEnum>(
+			exposureModeHelpers().begin()->first);
 
 	/* \todo Run this again when FrameDurationLimits is passed in */
 	setLimits(context.configuration.sensor.minExposureTime,
@@ -326,6 +335,7 @@ int AgcStatsRgb::init(IPAContext &context, const YamlObject &tuningData)
 	if (ret)
 		return ret;
 
+	context.ctrlMap[&controls::AeEnable] = ControlInfo(false, true);
 	context.ctrlMap.merge(controls());
 
 	return parseTuningDataRgb(tuningData);
@@ -482,12 +492,15 @@ void AgcStatsRgb::parseStatistics(const NxpNeoStats *stats)
 {
 	auto histMemStats = stats->block<BlockStatsType::MHist>();
 
-	const uint32_t *binRed = &(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(
-							kHistIds.r(), RoiId1)]);
-	const uint32_t *binGreen = &(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(
-							kHistIds.g(), RoiId1)]);
-	const uint32_t *binBlue = &(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(
-							kHistIds.b(), RoiId1)]);
+	const uint32_t *binRed =
+		&(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(kHistIds.r(),
+							      RoiId1)]);
+	const uint32_t *binGreen =
+		&(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(kHistIds.g(),
+							      RoiId1)]);
+	const uint32_t *binBlue =
+		&(histMemStats->hist_stat[GET_HIST_MEM_OFFSET(kHistIds.b(),
+							      RoiId1)]);
 	histogram_ = Histogram(Span<const uint32_t>(binGreen, NEO_HIST_BIN_SIZE));
 
 	rgbTriples_.clear();
@@ -572,7 +585,6 @@ int AgcStatsIr::init([[maybe_unused]] IPAContext &context,
 	return parseTuningData(tuningData);
 }
 
-
 /**
  * \brief Setup the RGBIR block of the ISP needed for the Ir channel histogram
  * \param[in] context The shared IPA context
@@ -612,8 +624,9 @@ void AgcStatsIr::setupHistograms(IPAContext &context, NxpNeoParams *params) cons
 void AgcStatsIr::parseStatistics(const NxpNeoStats *stats)
 {
 	auto rgbIrMemStats = stats->block<BlockStatsType::MRgbIr>();
-	const uint32_t *binChIr = &(rgbIrMemStats->rgbir_hist[GET_HIST_MEM_OFFSET(
-							kHistId, RoiId1)]);
+	const uint32_t *binChIr =
+		&(rgbIrMemStats->rgbir_hist[GET_HIST_MEM_OFFSET(kHistId,
+								RoiId1)]);
 	histogram_ = Histogram(Span<const uint32_t>(binChIr, NEO_HIST_BIN_SIZE));
 }
 
