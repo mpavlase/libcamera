@@ -44,7 +44,7 @@ private:
 	bool enabled_;
 	std::vector<uint8_t> obwbs_;
 
-	/* BLC offset values from calibration (16-bit pixel format) */
+	/* BLC offset values from calibration (16-bit bit depth) */
 	ChannelArray<uint16_t> calibrationOffsets_;
 
 	/* Offset reference bit-depth */

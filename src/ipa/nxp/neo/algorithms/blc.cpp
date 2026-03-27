@@ -27,7 +27,7 @@ namespace ipa::nxpneo::algorithms {
  * pixels. Black Level Correction applies an offset in the ISP to each color
  * channel in order to shift each black pixel color channel to a zero value.
  * Libcamera convention is to represent the BLC offsets as signed values,
- * relevant to a 16-bit pixel format.
+ * relevant to a 16-bit bit depth.
  * On NEO ISP, offsetting is done in the OBWB blocks of the ISP pipeline, either
  * in OBWB0/1 instances prior to the HDR-merge block, or in the OBWB2 instance
  * post HDR-merge.
@@ -61,16 +61,16 @@ namespace ipa::nxpneo::algorithms {
  *          ▼                   ▼
  *      to RGB Path        to IR path
  *
- * At the output of the HDR Decomp blocks, the camera pixel native format is
+ * At the output of the HDR Decomp blocks, the camera native bit depth is
  * expected to be:
  * - Rescaled to 20-bit (input0) and 16-bit (input1) when HDR-merge block is not
  *   used
- * - Native camera pixel format (no rescaling) when HDR-merge block is used,
- *   unless pixel native format is 10-bit where it would have been rescaled to
+ * - Native camera bit depth (no rescaling) when HDR-merge block is used,
+ *   unless native bit depth is 10-bit where it would have been rescaled to
  *   12-bit to cope with OBWB saturation that requires at least 12-bit.
  *
  * Thus, those input formats are the ones relevant to OBWB0/1 instances.
- * Conversely, at the output of HDR-merge block, pixel format is expected to be
+ * Conversely, at the output of HDR-merge block, bit depth is expected to be
  * unconditionally 20-bit which is relevant to the OBWB2 instance input.
  *
  * When HDR-merge block is used to aggregate multiple captures, BLC is to be
@@ -80,7 +80,7 @@ namespace ipa::nxpneo::algorithms {
  * changed to select the OBWB2 via calibration file.
  *
  * The OBWB offset register values are defined as an unsigned 16-bit value,
- * that represents the offset directly applied to the block input pixel format.
+ * that represents the offset directly applied to the block input bit depth.
  * BLC may share usage of the OBWB blocks with AWB, BLC configuring the
  * offsets and AWB configuring the gains. Thus, BLC also configures default
  * unitary gains in the OBWB blocks if they were not configured beforehand by
@@ -88,15 +88,15 @@ namespace ipa::nxpneo::algorithms {
  *
  * Some sensors expose the same BLC digital value, for instance 64, when
  * operated from different driver modes having different bit-depth. In such
- * case, a calibration entry specifies the reference sensor pixel format
+ * case, a calibration entry specifies the reference sensor bit depth
  * corresponding to the calibration value. That digital value will then be
  * applied to all pixel formats.
  *
  * Relevant keys in the BLC section of the calibration file:
- * R: offset for R channel (signed, 16-bit pixel format)
- * Gr: offset for Gr channel (signed, 16-bit pixel format)
- * Gb: offset for Gb channel (signed, 16-bit pixel format)
- * B: offset for B channel (signed, 16-bit pixel format)
+ * R: offset for R channel (signed, 16-bit bit depth)
+ * Gr: offset for Gr channel (signed, 16-bit bit depth)
+ * Gb: offset for Gb channel (signed, 16-bit bit depth)
+ * B: offset for B channel (signed, 16-bit bit depth)
  * reference-bitdepth: the camera mode bit-depth relevant to the offsets
  *  provided. If defined, the BLC will rescale the offsets applied according to
  *  bit-depth of the camera-mode selected for the stream.
@@ -207,7 +207,7 @@ int BlackLevelCorrection::configure(IPAContext &context,
 	/*
 	 * Compute the BLC offset at sensor level for each ISP input. For each
 	 * input, adjust the calibration offset that is defined for a 16-bit
-	 * format, to the actual pixel format in use by the current driver mode.
+	 * bit depth, to the actual bit depth in use by the current driver mode.
 	 * Also, consider here the condition of the sensors that use the same
 	 * BLC digital value for all pixel formats.
 	 */
@@ -233,12 +233,12 @@ int BlackLevelCorrection::configure(IPAContext &context,
 	 * the cumulated gain of the ISP upstream blocks. For OBWB0/1, upstream
 	 * gains come from PIPECONF (LPALIGN) and the HDR Decomp blocks. For
 	 * OBWB2, additional gain may come from HDR Merge block when enabled.
-	 * Assumption is that the internal pixel format at the input of OBWB
+	 * Assumption is that the internal bit depth at the input of OBWB
 	 * blocks is:
 	 * - OBWB0/1
 	 *     - 20/16-bit (input0/input1) for operation without HDR merge
-	 *     - The native sensor format (input0/input1) when HDR merge enabled
-	 *       or 12-bit if the pixel format is 10-bit
+	 *     - The native sensor bit depth (input0/input1) when HDR merge
+	 *     - is enabled or 12-bit if the bit depth is 10-bit
 	 * - OBWB2
 	 *     - 20-bit unconditionally
 	 */
@@ -284,9 +284,9 @@ int BlackLevelCorrection::configure(IPAContext &context,
 	}
 
 	/*
-	 * Store the BLC offsets to be reported in metadata. Metadata expects a
-	 * 16-bit pixel format for the offset, so the sensor offsets values are
-	 * rescaled accordingly.
+	 * Store the BLC offsets to be reported in metadata.
+	 * Metadata expects a 16-bit bit depth for the offset,
+	 * so the sensor offsets values are rescaled accordingly.
 	 */
 	int leftShift = 16 - bpps[0];
 	for (unsigned channel = 0; channel < kObwbChannelsCount; channel++) {
@@ -301,10 +301,9 @@ int BlackLevelCorrection::configure(IPAContext &context,
 
 	/*
 	 * Cache the OBWB obpp configuration that will be used at runtime.
-	 * Assumption is that 20-bit (input0) and 16-bit (input1) pixel format
+	 * Assumption is that 20-bit (input0) and 16-bit (input1) bit depth
 	 * is used in the ISP pipeline after HDR Decomp block. That is unless
-	 * HDR merge block is enabled and sensor pixel format is used until
-	 * merge.
+	 * HDR merge block is enabled and sensor bit depth is used until merge.
 	 */
 	auto obpp = [](unsigned int ibpp) -> unsigned int {
 		if (ibpp <= 12)

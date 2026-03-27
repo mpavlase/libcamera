@@ -63,7 +63,7 @@ namespace ipa::nxpneo::algorithms {
  *          ▼                   ▼
  *      to RGB Path        to IR path
  *
- * INALIGN0/1 configures, for the 10, 12, 14 and 20-bit pixel formats, if the
+ * INALIGN0/1 configures, for the 10, 12, 14 and 20-bit bit depths, if the
  * significant bits should be fetched MSB or LSB-aligned from the 16-bit aligned
  * words in the DDR buffer. On i.MX95 SoC, the DDR buffers produced by the ISI
  * device have the significant data bits MSB-aligned because of hardware
@@ -77,7 +77,7 @@ namespace ipa::nxpneo::algorithms {
  *   - 20-bit MSB alignment for input0
  *   - 16-bit MSB alignment for input1
  * However there is a hardware peculiarity in the ISP (i.MX95 rev B0, i.MX952)
- * with 12-bit sensor pixel format: rescaling for input0 and input1 is done to
+ * with 12-bit bit depth: rescaling for input0 and input1 is done to
  * 16-bit regardless of the PIPECONF.LPALIGN setting.
  *
  * Tables below recaps the ISP internal pipeline pixel data alignment depending
@@ -114,7 +114,7 @@ namespace ipa::nxpneo::algorithms {
  * falls back into automatic configuration mode using the following logic:
  * - For non HDR-merge mode of operation, configure LPALIGN0/1=1
  * - For HDR-merge mode of operation, configure LPALIGN0/1=0 to keep the native
- *   camera pixel format, as required for the HDR merge block.
+ *   camera bit depth, as required for the HDR merge block.
  *
  * When INALIGN0/1 is explicitly configured in the calibration file with above
  * entries, those are applied with priority. If not configured, the algorithm
@@ -125,7 +125,7 @@ namespace ipa::nxpneo::algorithms {
  *   limitation, configure INALIGN0/1=1 instead
  *
  * Note: for non-linear pixel format decompression using HDR Decompression unit,
- * a pixel format lower or equal to 16-bit is required to be able to define the
+ * a bit depth lower or equal to 16-bit is required to be able to define the
  * relevant knee-points. In that case LPALIGN automatic configuration logic does
  * not apply, so LPALIGN0/1 values should be set to 0 in the calibration file.
  */

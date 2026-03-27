@@ -173,9 +173,9 @@ int Awb::configure(IPAContext &context,
 
 	/*
 	 * Cache the OBWB obpp configuration that will be used at runtime.
-	 * Assumption is that 20-bit (input0) and 16-bit (input1) pixel format
+	 * Assumption is that 20-bit (input0) and 16-bit (input1) bit depth
 	 * is used in the ISP pipeline after HDR Decomp block, unless HDR merge
-	 * block is enabled so that sensor pixel format is used until merge.
+	 * block is enabled so that sensor bit depth is used until merge.
 	 */
 	auto obpp = [](unsigned int ibpp) -> unsigned int {
 		if (ibpp <= 12)
@@ -192,29 +192,29 @@ int Awb::configure(IPAContext &context,
 		context.configuration.sensor.bpps;
 
 	/*
-	 * Assumption is that the internal pixel format at the input of OBWB
+	 * Assumption is that the internal bit depth at the input of OBWB
 	 * blocks is:
 	 * - OBWB0/1
 	 *     - 20/16-bit (input0/input1) for operation without HDR merge
-	 *     - The native sensor format (input0/input1) when HDR merge enabled
-	 *       or 12-bit if the pixel format is 10-bit
+	 *     - The native sensor bit depth (input0/input1) when HDR merge
+	 *     - is enabled or 12-bit if the bit depth is 10-bit
 	 * - OBWB2
 	 *     - 20-bit unconditionally
 	 */
-	ObwbArray<uint16_t> obwbPixelFormat;
+	ObwbArray<uint16_t> obwbBitDepth;
 	if (mode != IPAModeTypeHdrMerge) {
-		obwbPixelFormat[0] = 20;
-		obwbPixelFormat[1] = 16;
-		awbConfig.obwbObpp[0] = obpp(obwbPixelFormat[0]);
-		awbConfig.obwbObpp[1] = obpp(obwbPixelFormat[1]);
+		obwbBitDepth[0] = 20;
+		obwbBitDepth[1] = 16;
+		awbConfig.obwbObpp[0] = obpp(obwbBitDepth[0]);
+		awbConfig.obwbObpp[1] = obpp(obwbBitDepth[1]);
 	} else {
-		obwbPixelFormat[0] = bpps[0] == 10 ? 12 : bpps[0];
-		obwbPixelFormat[1] = bpps[1] == 10 ? 12 : bpps[1];
+		obwbBitDepth[0] = bpps[0] == 10 ? 12 : bpps[0];
+		obwbBitDepth[1] = bpps[1] == 10 ? 12 : bpps[1];
 		awbConfig.obwbObpp[0] = obpp(bpps[0]);
 		awbConfig.obwbObpp[1] = obpp(bpps[1]);
 	}
-	obwbPixelFormat[2] = 20;
-	awbConfig.obwbObpp[2] = obpp(obwbPixelFormat[2]);
+	obwbBitDepth[2] = 20;
+	awbConfig.obwbObpp[2] = obpp(obwbBitDepth[2]);
 
 	/*
 	 * The awb gain factors are used to compensate the black level offsets
@@ -222,12 +222,12 @@ int Awb::configure(IPAContext &context,
 	 * It is calculated per OBWB unit and per color channel and based on
 	 * following associated parameters:
 	 * - maximum pixel value fed to the OBWB block input
-	 * - black level offset scaled to the input pixel format (which is
+	 * - black level offset scaled to the input bit depth (which is
 	 *   already computed from the blc algorithm)
 	 */
 	std::stringstream oss;
 	for (unsigned int obwb = 0; obwb < kObwbInstancesCount; obwb++) {
-		double inputPixelMax = (1 << obwbPixelFormat[obwb]) - 1;
+		double inputPixelMax = (1 << obwbBitDepth[obwb]) - 1;
 		const ChannelArray<uint16_t> &blcOffsets =
 			context.configuration.blc.obwbOffsets[obwb];
 		ChannelArray<float> &factors = awbConfig.blcFactors[obwb];
@@ -437,7 +437,7 @@ void Awb::configureCtempStats(IPAContext &context, NxpNeoParams *params)
 	 * exceeds the maximum sum value coded with 28 bits mantissa and
 	 * 4 bits exponent.
 	 * The maximum sum is reached with ((1U << 28) - 1)) << 15.
-	 * For 20bits maximum pixel format, the margin is large enough to not
+	 * For 20bits maximum bit depth, the margin is large enough to not
 	 * reach this maximum sum value.
 	 */
 	ctempConfig->stat_blk_size0_xsize = ctempConfig->roi.width / NEO_CTEMP_BLOCK_NB_X;
