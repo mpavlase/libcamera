@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * blc.h - NXP NEO Black Level Correction
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #pragma once

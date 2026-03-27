@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Based on RkISP1 Black Level Correction control algorithm
+ *     src/ipa/rkisp1/algorithms/blc.cpp
+ * Copyright (C) 2021-2022, Ideas On Board
+ *
  * blc.cpp - NXP NEO Black Level Correction
  * Copyright 2025-2026 NXP
  */
@@ -233,12 +237,13 @@ int BlackLevelCorrection::configure(IPAContext &context,
 	 * the cumulated gain of the ISP upstream blocks. For OBWB0/1, upstream
 	 * gains come from PIPECONF (LPALIGN) and the HDR Decomp blocks. For
 	 * OBWB2, additional gain may come from HDR Merge block when enabled.
-	 * Assumption is that the internal bit depth at the input of OBWB
-	 * blocks is:
+	 *
+	 * The bit depth varies depending on the OBWB block instance and the
+	 * pipeline operating mode:
 	 * - OBWB0/1
-	 *     - 20/16-bit (input0/input1) for operation without HDR merge
-	 *     - The native sensor bit depth (input0/input1) when HDR merge
-	 *     - is enabled or 12-bit if the bit depth is 10-bit
+	 *     - Without HDR merge: Fixed at 20-bit (input0) / 16-bit (input1)
+	 *     - With HDR merge enabled: Uses native sensor bit depth
+	 *       - Exception: 10-bit sensor data is expanded to 12-bit
 	 * - OBWB2
 	 *     - 20-bit unconditionally
 	 */
