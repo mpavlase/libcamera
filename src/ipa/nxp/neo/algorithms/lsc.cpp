@@ -5,7 +5,7 @@
  * Copyright (C) 2021-2022, Ideas On Board
  *
  * lsc.cpp NXP NEO Lens Shading Correction control
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #include "lsc.h"
@@ -159,8 +159,10 @@ public:
 	const std::optional<LensShadingCorrection::BlockCount> parseBlockCnt(
 		const YamlObject &yamlProfile) const
 	{
-		std::vector<uint16_t> blockCnt = yamlProfile["block-count"].getList<uint16_t>()
-					.value_or(std::vector<uint16_t>{});
+		std::vector<uint16_t> blockCnt =
+			yamlProfile["block-count"]
+				.getList<uint16_t>()
+				.value_or(std::vector<uint16_t>{});
 		if (blockCnt.size() != 2) {
 			LOG(NxpNeoAlgoLsc, Error)
 				<< "Invalid block count size which should be composed of "
@@ -198,7 +200,7 @@ unsigned int quantize(unsigned int value, unsigned int step)
 } // namespace
 
 LensShadingCorrection::LensShadingCorrection()
-	: status_(NOT_CONFIGURED), lastAppliedCt_(0), lastAppliedQuantizedCt_(0)
+	: readyToConfigure_(false), lastAppliedCt_(0), lastAppliedQuantizedCt_(0)
 {
 }
 
@@ -245,6 +247,9 @@ int LensShadingCorrection::init([[maybe_unused]] IPAContext &context,
 		return -EINVAL;
 	}
 
+	context.ctrlMap[&controls::LensShadingCorrectionEnable] =
+		ControlInfo(false, true, true);
+
 	return 0;
 }
 
@@ -257,7 +262,7 @@ int LensShadingCorrection::configure([[maybe_unused]] IPAContext &context,
 	/* clear lastAppliedCt_ and lastAppliedQuantizedCt_ */
 	lastAppliedCt_ = 0;
 	lastAppliedQuantizedCt_ = 0;
-	status_ = NOT_CONFIGURED;
+	readyToConfigure_ = false;
 
 	/* Get the block count according to the sensor resolution */
 	std::optional<BlockCount> bc = blockCount(configInfo.outputSize);
@@ -295,7 +300,8 @@ int LensShadingCorrection::configure([[maybe_unused]] IPAContext &context,
 		return 0;
 	}
 
-	status_ = CONFIGURED;
+	readyToConfigure_ = true;
+	context.activeState.lsc.enabled = true;
 
 	return 0;
 }
@@ -325,6 +331,34 @@ LensShadingCorrection::sets(Size resolution) const
 }
 
 /**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void LensShadingCorrection::queueRequest(IPAContext &context,
+					 const uint32_t frame,
+					 IPAFrameContext &frameContext,
+					 const ControlList &controls)
+{
+	if (!readyToConfigure_)
+		return;
+
+	if (!frame)
+		frameContext.lsc.update = true;
+
+	auto &lsc = context.activeState.lsc;
+	const auto &lscEnable = controls.get(controls::LensShadingCorrectionEnable);
+	if (lscEnable && *lscEnable != lsc.enabled) {
+		lsc.enabled = *lscEnable;
+
+		LOG(NxpNeoAlgoLsc, Debug)
+			<< (lsc.enabled ? "Enabling" : "Disabling") << " Lsc";
+
+		frameContext.lsc.update = true;
+	}
+
+	frameContext.lsc.enabled = lsc.enabled;
+}
+
+/**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void LensShadingCorrection::prepare(IPAContext &context,
@@ -332,38 +366,42 @@ void LensShadingCorrection::prepare(IPAContext &context,
 				    [[maybe_unused]] IPAFrameContext &frameContext,
 				    NxpNeoParams *params)
 {
-	if (status_ == NOT_CONFIGURED)
+	if (!readyToConfigure_)
 		/* No Lsc is configured for current context */
 		return;
 
 	uint32_t ct = context.activeState.awb.temperatureK;
 	unsigned int quantizedCt = quantize(ct, kColourTemperatureQuantization);
 
-	/*
-	 * Add a threshold so that oscillations around a quantization step don't
-	 * lead to constant changes.
-	 */
-	if (utils::abs_diff(ct, lastAppliedCt_) < kColourTemperatureQuantization / 2)
-		return;
+	/* Check if we can skip the update. */
+	if (!frameContext.lsc.update) {
+		if (!frameContext.lsc.enabled)
+			return;
+		/*
+		* Add a threshold so that oscillations around a quantization step don't
+		* lead to constant changes.
+		*/
+		if (utils::abs_diff(ct, lastAppliedCt_) < kColourTemperatureQuantization / 2)
+			return;
 
-	if (quantizedCt == lastAppliedQuantizedCt_)
-		return;
-
-	if (status_ != ENABLED) {
+		if (quantizedCt == lastAppliedQuantizedCt_)
+			return;
+	} else {
 		auto vigCtrlConfig = params->block<BlockParamsType::VigCtrl>();
 		vigCtrlConfig.setUpdate(true);
 
-		vigCtrlConfig->ctrl_enable = 1;
+		/* \todo Once setEnabled is available don't update ctrl_enable here */
+		vigCtrlConfig->ctrl_enable = frameContext.lsc.enabled ? 1 : 0;
 		vigCtrlConfig->blk_conf_cols = blockCountX_;
 		vigCtrlConfig->blk_conf_rows = blockCountY_;
 		vigCtrlConfig->blk_size_xsize = blockWidth_;
 		vigCtrlConfig->blk_size_ysize = blockHeight_;
 		vigCtrlConfig->blk_stepx_step = blockStepX_;
 		vigCtrlConfig->blk_stepy_step = blockStepY_;
-
-		LOG(NxpNeoAlgoLsc, Debug) << "Lsc is enabled";
-		status_ = ENABLED;
 	}
+
+	if (!frameContext.lsc.enabled)
+		return;
 
 	auto vigTableConfig = params->block<BlockParamsType::VigTable>();
 	vigTableConfig.setUpdate(true);
@@ -380,6 +418,18 @@ void LensShadingCorrection::prepare(IPAContext &context,
 	LOG(NxpNeoAlgoLsc, Debug)
 		<< "ct is " << ct << ", quantized to "
 		<< quantizedCt;
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::process
+ */
+void LensShadingCorrection::process([[maybe_unused]] IPAContext &context,
+				    [[maybe_unused]] const uint32_t frame,
+				    IPAFrameContext &frameContext,
+				    [[maybe_unused]] const NxpNeoStats *stats,
+				    ControlList &metadata)
+{
+	metadata.set(controls::LensShadingCorrectionEnable, frameContext.lsc.enabled);
 }
 
 REGISTER_IPA_ALGORITHM(LensShadingCorrection, "LensShadingCorrection")

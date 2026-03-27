@@ -5,7 +5,7 @@
  * Copyright (C) 2021-2022, Ideas On Board
  *
  * lsc.h NXP NEO Lens Shading Correction control
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  */
 
 #pragma once
@@ -28,15 +28,16 @@ public:
 
 	int init(IPAContext &context, const YamlObject &tuningData) override;
 	int configure(IPAContext &context, const IPACameraSensorInfo &configInfo) override;
+	void queueRequest(IPAContext &context, const uint32_t frame,
+			  IPAFrameContext &frameContext,
+			  const ControlList &controls) override;
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     NxpNeoParams *params) override;
-
-	enum Status {
-		ENABLED = 0,
-		CONFIGURED = 1,
-		NOT_CONFIGURED = 2
-	};
+	void process(IPAContext &context, const uint32_t frame,
+		     IPAFrameContext &frameContext,
+		     const NxpNeoStats *stats,
+		     ControlList &metadata) override;
 
 	struct Components {
 		uint32_t ct;
@@ -56,8 +57,8 @@ private:
 
 	static constexpr uint32_t kScalingFractionalSize = (1 << 15);
 
-	Status status_;
 	ipa::Interpolator<Components> sets_;
+	bool readyToConfigure_;
 	unsigned int lastAppliedCt_;
 	unsigned int lastAppliedQuantizedCt_;
 

@@ -144,6 +144,10 @@ struct IPAActiveState {
 	} ccm;
 
 	struct {
+		bool enabled;
+	} lsc;
+
+	struct {
 		float gamma;
 	} goc;
 };
@@ -200,6 +204,11 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		Matrix<float, 3, 3> ccm;
 	} ccm;
+
+	struct {
+		bool enabled;
+		bool update;
+	} lsc;
 
 	struct {
 		float gamma;
