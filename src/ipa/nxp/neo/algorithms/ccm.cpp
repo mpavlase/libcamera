@@ -5,7 +5,7 @@
  * Copyright (C) 2024, Ideas On Board
  *
  * ccm.cpp - Color Correction Matrix control algorithm
- * Copyright 2024 NXP
+ * Copyright 2024-2026 NXP
  */
 
 #include "ccm.h"
@@ -155,12 +155,8 @@ void Ccm::process([[maybe_unused]] IPAContext &context,
 		  [[maybe_unused]] const NxpNeoStats *stats,
 		  ControlList &metadata)
 {
-	float m[9];
-	for (unsigned int i = 0; i < 3; i++) {
-		for (unsigned int j = 0; j < 3; j++)
-			m[i * 3 + j] = frameContext.ccm.ccm[i][j];
-	}
-	metadata.set(controls::ColourCorrectionMatrix, m);
+	metadata.set(controls::ColourCorrectionMatrix,
+		     frameContext.ccm.ccm.data());
 }
 
 REGISTER_IPA_ALGORITHM(Ccm, "Ccm")
