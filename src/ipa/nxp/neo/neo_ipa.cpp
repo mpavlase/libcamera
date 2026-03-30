@@ -119,8 +119,6 @@ namespace {
 
 /* Default IPA controls */
 const ControlInfoMap::Map ipaDefaultControls{
-	{ &controls::AwbEnable, ControlInfo(false, true) },
-	{ &controls::ColourGains, ControlInfo(0.0f, 32.0f) },
 	{ &controls::Gamma, ControlInfo(0.5f, 10.0f, 2.2f) },
 };
 

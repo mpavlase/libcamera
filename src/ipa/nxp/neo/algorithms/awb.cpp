@@ -5,7 +5,7 @@
  * Copyright (C) 2021, Ideas On Board
  *
  * awb.cpp - AWB control algorithm
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
  */
 
 #include "awb.h"
@@ -118,6 +118,9 @@ Awb::Awb()
  */
 int Awb::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
 {
+	context.ctrlMap[&controls::AwbEnable] = ControlInfo(false, true);
+	context.ctrlMap[&controls::ColourGains] = ControlInfo(0.0f, 32.0f);
+
 	/* Get the OBWB block name from tuning file. */
 	obwbUserConfig_ = tuningData["obwb-blocks"].get<std::string>();
 
@@ -192,12 +195,14 @@ int Awb::configure(IPAContext &context,
 		context.configuration.sensor.bpps;
 
 	/*
-	 * Assumption is that the internal bit depth at the input of OBWB
-	 * blocks is:
+	 * Determine the internal bit depth at the input of each OBWB block.
+	 *
+	 * The bit depth varies depending on the OBWB block instance and the
+	 * pipeline operating mode:
 	 * - OBWB0/1
-	 *     - 20/16-bit (input0/input1) for operation without HDR merge
-	 *     - The native sensor bit depth (input0/input1) when HDR merge
-	 *     - is enabled or 12-bit if the bit depth is 10-bit
+	 *     - Without HDR merge: Fixed at 20-bit (input0) / 16-bit (input1)
+	 *     - With HDR merge enabled: Uses native sensor bit depth
+	 *       - Exception: 10-bit sensor data is expanded to 12-bit
 	 * - OBWB2
 	 *     - 20-bit unconditionally
 	 */
@@ -591,7 +596,7 @@ void Awb::process(IPAContext &context,
 
 	LOG(NxpNeoAlgoAwb, Debug)
 		<< std::showpoint
-		<< "AWB Gains [" << activeState.awb.gains.automatic
+		<< "AWB Gains " << activeState.awb.gains.automatic
 		<< ", temp " << frameContext.awb.temperatureK << "K";
 }
 
