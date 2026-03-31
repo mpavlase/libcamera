@@ -76,37 +76,31 @@ namespace ipa::nxpneo::algorithms {
  * shifted, with:
  *   - 20-bit MSB alignment for input0
  *   - 16-bit MSB alignment for input1
- * However there is a hardware peculiarity in the ISP hardware revision V2
- * (i.MX95 rev B0, i.MX952) with 12-bit sensor pixel format: rescaling for
- * input0 and input1 is done to 16-bit regardless of the PIPECONF.LPALIGN
- * setting.
+ * However there is a hardware peculiarity in the ISP (i.MX95 rev B0, i.MX952)
+ * with 12-bit sensor pixel format: rescaling for input0 and input1 is done to
+ * 16-bit regardless of the PIPECONF.LPALIGN setting.
  *
  * Tables below recaps the ISP internal pipeline pixel data alignment depending
- * on the input camera bit per pixel (ibpp), LPALIGN0/1 configuration and the
- * hardware revision.
+ * on the input camera bit per pixel (ibpp) and the LPALIGN0/1 configuration.
  *
  * input0 (LPALIGN0)
- * +------+---------------+---------------+
- * |      | LPALIGN0 = 0  | LPALIGN0 = 1  |
- * | ibpp +-------+-------+-------+-------+
- * |      | HW V1 | HW V2 | HW V1 | HW V2 |
- * +------+-------+-------+---------------+
- * |  10  |  10   |  10   |  20   |  20   |
- * |  12  |  12   |  16   |  20   |  16   |
- * |  14  |  14   |  14   |  20   |  20   |
- * |  16  |  16   |  16   |  20   |  20   |
- * +------+-------+-------+-------+-------+
+ * +------+------------+------------+
+ * | ibpp | LPALIGN0=0 | LPALIGN0=1 |
+ * +------+------------+------------+
+ * |  10  |     10     |     20     |
+ * |  12  |     16     |     16     |
+ * |  14  |     14     |     20     |
+ * |  16  |     16     |     20     |
+ * +------+------------+------------+
  *
  * input1 (LPALIGN1)
- * +------+---------------+---------------+
- * |      | LPALIGN1 = 0  | LPALIGN1 = 1  |
- * | ibpp +-------+-------+-------+-------+
- * |      | HW V1 | HW V2 | HW V1 | HW V2 |
- * +------+-------+-------+---------------+
- * |  10  |  10   |  10   |  16   |  16   |
- * |  12  |  12   |  16   |  16   |  16   |
- * |  14  |  14   |  14   |  16   |  16   |
- * +------+-------+-------+-------+-------+
+ * +------+------------+------------+
+ * | ibpp | LPALIGN1=0 | LPALIGN1=1 |
+ * +------+------------+------------+
+ * |  10  |    10      |     16     |
+ * |  12  |    16      |     16     |
+ * |  14  |    14      |     16     |
+ * +------+------------+------------+
  *
  * Relevant entries in the configuration file is a mapping of the following
  * keys:
@@ -156,7 +150,8 @@ int PipeConf::init([[maybe_unused]] IPAContext &context,
 	const YamlObject &lpAlign1Obj = tuningData["lpalign1"];
 	lpAlign1_ = lpAlign1Obj.get<uint8_t>();
 
-	uint8_t inAlignAuto = (context.hw.hwCapabilities & NEO_CAP_ALIGNMENT_MSB) ? 1 : 0;
+	uint8_t inAlignAuto =
+		context.hw.hwCapabilities & NEO_CAP_ALIGNMENT_MSB ? 1 : 0;
 	const YamlObject &inAlign0Obj = tuningData["inalign0"];
 	inAlign0_ = inAlign0Obj.get<uint8_t>().value_or(inAlignAuto);
 	const YamlObject &inAlign1Obj = tuningData["inalign1"];
