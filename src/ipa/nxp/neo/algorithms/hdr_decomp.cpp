@@ -256,17 +256,17 @@ int HdrDecomp::configure(IPAContext &context,
 	/*
 	 * When no user configuration is present in the configuration file we
 	 * fallback to a default linear bypass configuration of the block.
-	 * There is a hardware peculiarity in the ISP hardware revision V2
-	 * with 12-bit sensor pixel format:
+	 * There is a hardware peculiarity in the ISP with 12-bit sensor pixel
+	 * format:
 	 * - Rescaling for input0 and input1 is done to 16-bit regardless of the
 	 *   PIPECONF.LPALIGN setting.
-	 * This leads to 2 exceptions using ISP revision V2 with 12-bit input0
-	 * and input1 pixel format:
+	 * This leads to 2 exceptions using 12-bit input0 and input1 pixel
+	 * format:
 	 * 1) In non HDR-merge mode, the need is to rescale the pixels to:
 	 *    - 20-bits internal format for input0.
 	 *    - 16-bits internal format for input1.
 	 *    In that case, the HDR Decompression is configured to apply:
-	 *    - an additional gain of 16 for the input0 remaining 16-bit to
+	 *    - an additional gain of 16 for the input0 rescaling 16-bit to
 	 *      20-bit conversion.
 	 *    - linear decompression (no additional gain) for the input1
 	 * 2) In HDR-merge mode there is the opposite issue where we want to
@@ -283,18 +283,17 @@ int HdrDecomp::configure(IPAContext &context,
 	 * format in order to meet the OBWB0/1 constraints.
 	 */
 	IPAModeType &mode = context.configuration.pipelineMode;
-	unsigned int &hwRevision = context.hw.hwRevision;
 	std::array<uint32_t, 2> &bpps = context.configuration.sensor.bpps;
 
 	/* Special cases: update ratio[4] to amend the unitary gain (u7.5). */
-	if (!input0_.userConfig && bpps[0] == 12 && hwRevision == NEOISP_HW_V2) {
+	if (!input0_.userConfig && bpps[0] == 12) {
 		if (mode != IPAModeTypeHdrMerge)
 			input0_.ratios[4] = (1 << 5) * 16;
 		else
 			input0_.ratios[4] = (1 << 5) / 16;
 	}
 
-	if (!input1_.userConfig && bpps[1] == 12 && hwRevision == NEOISP_HW_V2) {
+	if (!input1_.userConfig && bpps[1] == 12) {
 		if (mode == IPAModeTypeHdrMerge)
 			input1_.ratios[4] = (1 << 5) / 16;
 	}
