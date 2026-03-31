@@ -136,7 +136,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj0["points"].getList<uint16_t>();
 		if (points && points->size() != kNumPoints) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input0 points list size must be " << kNumPoints;
+				<< "input0 points list size must be "
+				<< kNumPoints;
 			return -EINVAL;
 		}
 
@@ -144,7 +145,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj0["offsets"].getList<uint16_t>();
 		if (offsets && offsets->size() != kNumOffsets) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input0 offsets list size must be " << kNumOffsets;
+				<< "input0 offsets list size must be "
+				<< kNumOffsets;
 			return -EINVAL;
 		}
 
@@ -152,7 +154,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj0["newpoints"].getList<uint32_t>();
 		if (newpoints && newpoints->size() != kNumNewPoints) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input0 newpoints list size must be " << kNumNewPoints;
+				<< "input0 newpoints list size must be "
+				<< kNumNewPoints;
 			return -EINVAL;
 		}
 
@@ -160,7 +163,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj0["ratios"].getList<uint16_t>();
 		if (ratios && ratios->size() != kNumRatios) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input0 ratios list size must be " << kNumRatios;
+				<< "input0 ratios list size must be "
+				<< kNumRatios;
 			return -EINVAL;
 		}
 
@@ -191,7 +195,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj1["points"].getList<uint16_t>();
 		if (points && points->size() != kNumPoints) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input1 points list size must be " << kNumPoints;
+				<< "input1 points list size must be "
+				<< kNumPoints;
 			return -EINVAL;
 		}
 
@@ -199,7 +204,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj1["offsets"].getList<uint16_t>();
 		if (offsets && offsets->size() != kNumOffsets) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input1 offsets list size must be " << kNumOffsets;
+				<< "input1 offsets list size must be "
+				<< kNumOffsets;
 			return -EINVAL;
 		}
 
@@ -207,7 +213,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj1["newpoints"].getList<uint16_t>();
 		if (newpoints && newpoints->size() != kNumNewPoints) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input1 newpoints list size must be " << kNumNewPoints;
+				<< "input1 newpoints list size must be "
+				<< kNumNewPoints;
 			return -EINVAL;
 		}
 
@@ -215,7 +222,8 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 			obj1["ratios"].getList<uint16_t>();
 		if (ratios && ratios->size() != kNumRatios) {
 			LOG(NxpNeoAlgoHdrDecomp, Error)
-				<< "input1 ratios list size must be " << kNumRatios;
+				<< "input1 ratios list size must be "
+				<< kNumRatios;
 			return -EINVAL;
 		}
 
@@ -258,7 +266,8 @@ int HdrDecomp::configure(IPAContext &context,
 	 *    - 20-bits internal format for input0.
 	 *    - 16-bits internal format for input1.
 	 *    In that case, the HDR Decompression is configured to apply:
-	 *    - an additional gain of 16 for the input0 remaining 16-bit to 20-bit conversion.
+	 *    - an additional gain of 16 for the input0 remaining 16-bit to
+	 *      20-bit conversion.
 	 *    - linear decompression (no additional gain) for the input1
 	 * 2) In HDR-merge mode there is the opposite issue where we want to
 	 *    keep the native sensor format up to the HDR-merge block. For that
@@ -310,7 +319,8 @@ int HdrDecomp::configure(IPAContext &context,
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void HdrDecomp::prepare([[maybe_unused]] IPAContext &context, const uint32_t frame,
+void HdrDecomp::prepare([[maybe_unused]] IPAContext &context,
+			const uint32_t frame,
 			[[maybe_unused]] IPAFrameContext &frameContext,
 			NxpNeoParams *params)
 {
