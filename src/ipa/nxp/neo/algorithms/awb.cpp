@@ -119,7 +119,7 @@ Awb::Awb()
 int Awb::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
 {
 	context.ctrlMap[&controls::AwbEnable] = ControlInfo(false, true);
-	context.ctrlMap[&controls::ColourGains] = ControlInfo(0.0f, 32.0f);
+	context.ctrlMap[&controls::ColourGains] = ControlInfo(0.1f, 32.0f);
 
 	/* Get the OBWB block name from tuning file. */
 	obwbUserConfig_ = tuningData["obwb-blocks"].get<std::string>();
