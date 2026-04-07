@@ -14,6 +14,7 @@
 
 #include <libcamera/base/utils.h>
 
+#include <libcamera/formats.h>
 #include <libcamera/geometry.h>
 #include <libcamera/orientation.h>
 
@@ -32,6 +33,30 @@ struct CameraProperties {
 	std::optional<Size> formatSize;
 	std::optional<Orientation> orientation;
 	std::optional<utils::Duration> controlsDelay;
+
+	/*
+	 * Vivid instance default configuration values.
+	 * Reference: vivid Linux driver implementation vivid-ctrls.c
+	 * - Test Pattern (VIVID_CID_TEST_PATTERN): "75% Colorbar" (0)
+	 * - Test Pattern Horizontal Movement (VIVID_CID_HOR_MOVEMENT):
+	 *   "No Movement" (3)
+	 * - Test Pattern Vertical Movement (VIVID_CID_VERT_MOVEMENT):
+	 *   "No Movement" (3)
+	 */
+	static constexpr bool kVividLoopbackDefault = false;
+	static constexpr unsigned int kVividTpgPatternDefault = 0;
+	static constexpr unsigned int kVividTpgHMovementDefault = 3;
+	static constexpr unsigned int kVividTpgVMovementDefault = 3;
+
+	struct VividConfig {
+		PixelFormat pixelFormat;
+		Size size;
+		bool loopback;
+		unsigned int tpgPattern;
+		unsigned int tpgHorizontalMovement;
+		unsigned int tpgVerticalMovement;
+	};
+	std::optional<std::vector<VividConfig>> vividInstances;
 };
 
 struct GlobalInfo {
