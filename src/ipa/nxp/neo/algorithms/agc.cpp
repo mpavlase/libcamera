@@ -61,7 +61,7 @@ namespace ipa::nxpneo::algorithms {
  * due to following dependencies:
  * - AGC is using the AWB gains to adapt the calculated luminance.
  * - AGC is using the ratio between the long and short captures
- *   configured from the HDR algorithm to adapt the histogram scaling factor.
+ *   configured by the HDR algorithm to adapt the histogram scaling factor.
  */
 
 LOG_DEFINE_CATEGORY(NxpNeoAlgoAgc)
@@ -575,7 +575,7 @@ double AgcStatsRgb::estimateLuminance(double gain) const
  *
  * This function calls the base class' tuningData parsers.
  * The controls discovered by the AgcMeanLuminance parsers are the same
- * for each context (RGb and Ir) and are merged from the RGB context,
+ * for each context (RGB and Ir) and are merged from the RGB context,
  * see AgcStatsIr::init().
  *
  * \return 0 on success or errors from the base class
