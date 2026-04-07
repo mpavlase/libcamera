@@ -2251,6 +2251,8 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 	std::map<FEStream, V4L2DeviceFormat> feVDevFormats;
 	ret = feCamera_->configure(sensorFormat, config->combinedTransform(),
 				   &feVDevFormats, nullptr);
+	if (ret)
+		return ret;
 
 	/* ISP configuration. */
 	V4L2DeviceFormat devFormatFrame{};
