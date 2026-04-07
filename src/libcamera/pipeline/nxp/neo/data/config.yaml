@@ -64,6 +64,21 @@
 #                   issues (experimental)
 #                   optional - default is 0
 #
+#   vivid-instances = sequence of vivid camera instance configurations
+#                     Optional, specific to vivid-camera virtual camera driver
+#     pixel-format  = pixel format string (e.g. SBGGR12, SGRBG10)
+#                     mandatory when configuration is present
+#     size          = sequence of two values (<width>, <height>)
+#                     mandatory when configuration is present
+#     loopback      = input/output loopback mode enabled, boolean value
+#                     optional - false by default
+#     tpg-pattern   = test pattern generator pattern selection [0..21]
+#                     optional - 0 by default
+#     tpg-hmove     = test pattern generator horizontal movement speed [0..6]
+#                     optional - 3 by default (None)
+#     tpg-vmove     = test pattern generator vertical movement speed [0..6]
+#                     optional - 3 by default (None)
+#
 # 'cameras' section definition example:
 #
 # cameras:
@@ -85,4 +100,12 @@ cameras:
     controls-delay: 3
   - model: ox05b1s
     rgbir-cfa: true
+  - model: vivid
+    vivid-instances:
+        - pixel-format: SBGGR12
+          size: [1920, 1080]
+          loopback: false
+          tpg-pattern: 0
+          tpg-hmove: 3
+          tpg-vmove: 3
 ...
