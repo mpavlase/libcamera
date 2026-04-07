@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * Helper class that performs sensor-specific parameter computations
+ *
  * Based on Helper class that performs sensor-specific parameter computations
  *     src/ipa/libipa/camera_sensor_helper.c
  * Copyright (C) 2021, Google Inc.
- *
- * camera_helper.c
- * Helper class that performs sensor-specific parameter computations
- * Copyright 2024-2026 NXP
  */
 #include "camera_helper.h"
 

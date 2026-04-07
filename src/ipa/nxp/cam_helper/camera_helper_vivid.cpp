@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * camera_helper_vivid.c
+ * Copyright 2026 NXP
+ *
  * Helper class that performs sensor-specific parameter computations
  * for a VIVID test camera
- * Copyright 2026 NXP
  */
 
 #include "camera_helper.h"

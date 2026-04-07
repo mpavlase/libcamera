@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * camera_helper_ar0235.c
+ * Copyright 2025-2026 NXP
+ *
  * Helper class that performs sensor-specific parameter computations
  * for Onsemi AR0235 sensor
- * Copyright 2025 NXP
  */
 
 #include <linux/v4l2-controls.h>

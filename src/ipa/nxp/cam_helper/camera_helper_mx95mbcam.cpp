@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * camera_helper_mx95mbcam.c
+ * Copyright 2024-2026 NXP
+ *
  * Helper class that performs sensor-specific parameter computations
  * for MX95MBCAM module (OX03C10 camera and a Maxim MAX96717 GMSL2 serializer)
- * Copyright 2024-2026 NXP
  */
 
 #include <cmath>

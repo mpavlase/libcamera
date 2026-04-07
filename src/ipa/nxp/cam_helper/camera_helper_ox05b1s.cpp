@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * camera_helper_ox05b1s.c
+ * Copyright 2024-2026 NXP
+ *
  * Helper class that performs sensor-specific parameter computations
  * for Omnivision ox05b1s sensor
- * Copyright 2024-2026 NXP
  */
 
 #include <cmath>
