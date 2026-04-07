@@ -1673,7 +1673,8 @@ int NxpNeoCameraData::start([[maybe_unused]] const ControlList *controls)
 		if (ret)
 			goto error;
 
-		delayedCtrls_->reset();
+		if (delayedCtrls_)
+			delayedCtrls_->reset();
 
 		ret = 0;
 		for (auto &[context, neo] : neoDevices_)
@@ -2057,9 +2058,11 @@ int NxpNeoCameraData::loadIPA()
 		};
 	}
 
-	delayedCtrls_ =
-		std::make_unique<DelayedControls>(sensor->device(),
-						  delayedControlsParams);
+	V4L2Subdevice *subdev = sensor->device();
+	if (subdev) {
+		delayedCtrls_ = std::make_unique<DelayedControls>(
+			subdev, delayedControlsParams);
+	}
 
 	return 0;
 }
@@ -2621,6 +2624,9 @@ void NxpNeoCameraData::applySensorControls(NxpNeoFrames::Info *info)
 	if (!isRawCamera())
 		return;
 
+	if (!delayedCtrls_)
+		return;
+
 	unsigned int id = info->id_;
 	DelayedControls *delayedControls = delayedCtrls_.get();
 
@@ -2740,10 +2746,20 @@ void NxpNeoCameraData::neoStatsBufferReady(FrameBuffer *buffer)
 	};
 
 	unsigned int sequence = info->id_;
+	ControlList sensorControls;
+	if (delayedCtrls_) {
+		sensorControls = delayedCtrls_->get(sequence);
+	} else {
+		CameraSensor *sensor = feCamera_->sensor();
+		std::vector<uint32_t> ids =
+			utils::map_keys(sensor->controls().idmap());
+		sensorControls = sensor->getControls(ids);
+	}
+
 	ipa_->processStats(sequence,
 			   static_cast<ipa::nxpneo::IPAContextType>(context),
 			   bufferIds,
-			   delayedCtrls_->get(sequence));
+			   sensorControls);
 
 	tryCompleteRequest(info);
 }
@@ -2836,7 +2852,8 @@ void NxpNeoCameraData::ipaMetadataReady(unsigned int id,
 void NxpNeoCameraData::ipaSetSensorControls([[maybe_unused]] unsigned int id,
 					    const ControlList &sensorControls)
 {
-	delayedCtrls_->push(sensorControls);
+	if (delayedCtrls_)
+		delayedCtrls_->push(sensorControls);
 }
 
 void NxpNeoCameraData::ipaSetLensControls(const ControlList &lensControls)
