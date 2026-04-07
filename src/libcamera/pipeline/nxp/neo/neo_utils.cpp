@@ -43,6 +43,12 @@ namespace nxpneo {
  * \var CameraProperties::eDataStream
  * \brief Camera has a dedicated stream for embedded data
  *
+ * \var CameraProperties::rgbirCfa
+ * \brief Camera sensor uses an RGBIr color filter array
+ *
+ * This parameter indicates whether the camera sensor has an RGBIr (RGB + Infrared)
+ * color filter array instead of a standard Bayer pattern.
+ *
  * \var CameraProperties::formatBpp
  * \brief Format bit-per-pixel filter value (optional)
  *
