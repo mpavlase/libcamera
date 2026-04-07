@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * goc.h NXP NEO Gamma out control
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
+ *
+ * NXP NEO Gamma out control
  */
 
 #pragma once

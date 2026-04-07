@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO control algorithm interface
+ *
  * Based on RkISP1 Image Processing Algorithms
  *     src/ipa/algorithms/algorithm.h
  * Copyright (C) 2021, Ideas On Board
- *
- * algorithm.h - NXP NEO control algorithm interface
- * Copyright 2024-2026 NXP
  */
 
 #pragma once

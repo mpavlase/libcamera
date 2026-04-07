@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2025-2026 NXP
+ *
+ * NXP NEO Lens Shading Correction control
+ *
  * Based on Lens Shading Correction control algorithm
  *     src/ipa/rkisp1/algorithms/lsc.h
  * Copyright (C) 2021-2022, Ideas On Board
- *
- * lsc.h NXP NEO Lens Shading Correction control
- * Copyright 2025-2026 NXP
  */
 
 #pragma once

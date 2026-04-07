@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO AWB control algorithm
+ *
  * Based on IPU3 AWB control algorithm
  *     src/ipa/ipu3/algorithms/awb.cpp
  * Copyright (C) 2021, Ideas On Board
- *
- * awb.cpp - AWB control algorithm
- * Copyright 2024-2026 NXP
  */
 
 #include "awb.h"

@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * drc.h - NXP NEO DRC configuration
- * Copyright 2024-2025 NXP
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO DRC configuration
  */
 
 #pragma once

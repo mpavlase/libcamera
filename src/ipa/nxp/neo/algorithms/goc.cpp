@@ -1,12 +1,13 @@
 
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2025-2026 NXP
+ *
+ * NXP NEO Gamma out control
+ *
  * Based on RkISP1 Gamma Out Control algorithm
  *     src/ipa/rkisp1/algorithms/goc.cpp
  * Copyright (C) 2024, Ideas On Board
- *
- * goc.cpp NXP NEO Gamma out control
- * Copyright 2025-2026 NXP
  */
 
 #include "goc.h"

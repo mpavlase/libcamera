@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO Color Correction Matrix control algorithm
+ *
  * Based on RkISP1 Color Correction Matrix control algorithm
  *     src/ipa/rkisp1/algorithms/ccm.cpp
  * Copyright (C) 2024, Ideas On Board
- *
- * ccm.cpp - Color Correction Matrix control algorithm
- * Copyright 2024-2026 NXP
  */
 
 #include "ccm.h"

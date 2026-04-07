@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO ISP enum values
+ *
  * Definitions from this file are supposed to be
  * integrated part of the linux kernel UAPI nxp_neoisp.h
- *
- * nxp-neoisp-enums.h - NXP NEO ISP enum values
- * Copyright 2024-2026 NXP
  */
 
 #pragma once

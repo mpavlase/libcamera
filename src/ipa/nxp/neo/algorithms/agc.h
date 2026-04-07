@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO AGC/AEC mean-based control algorithm
+ *
  * Based on RkISP1 AGC/AEC mean-based control algorithm
  *     src/ipa/rkisp1/algorithms/agc.h
  * Copyright (C) 2021-2022, Ideas On Board
- *
- * agc.h - NXP NEO AGC/AEC mean-based control algorithm
- * Copyright 2024-2025 NXP
  */
 
 #pragma once

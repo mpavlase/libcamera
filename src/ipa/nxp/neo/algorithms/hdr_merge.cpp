@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * hdr_merge.cpp - NXP NEO HDR Merge configuration
  * Copyright 2025-2026 NXP
+ *
+ * NXP NEO HDR Merge configuration
  */
 
 #include "hdr_merge.h"

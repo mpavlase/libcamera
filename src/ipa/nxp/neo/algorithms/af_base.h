@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: BSD-2-Clause */
 /*
+ * Copyright 2025-2026 NXP
+ *
+ * Autofocus algorithm interface
+ *
  * Copyright (C) 2022, Raspberry Pi Ltd
  *
- * Auto focus algorithm interface
- *
- * Copyright 2025 NXP
  * Adapted from the file src/ipa/rpi/controller/rpi/af_algorithm.h
  * to be used as an interface for standard libcamera IPA autofocus algorithm
  */

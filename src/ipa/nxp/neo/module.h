@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO IPA Module
+ *
  * Based on Rockchip ISP1 Module
  *     src/ipa/rkisp1/module.h
  * Copyright (C) 2022, Ideas On Board
- *
- * module.h - NXP NEO IPA Module
- * Copyright 2024-2025 NXP
  */
 
 #pragma once

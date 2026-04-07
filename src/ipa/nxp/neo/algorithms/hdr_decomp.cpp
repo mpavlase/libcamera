@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * hdr_decomp.cpp - NXP NEO HDR Decompression configuration
  * Copyright 2025-2026 NXP
+ *
+ * NXP NEO HDR Decompression configuration
  */
 
 #include "hdr_decomp.h"

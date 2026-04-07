@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * Copyright (C) 2024, Ideas On Board
- * Copyright 2025 NXP
+ * Copyright 2025-2026 NXP
  *
- * NXP NEOISP Statistics
+ * NXP NEO ISP Statistics
+ *
+ * Copyright (C) 2024, Ideas On Board
  */
 
 #include "stats.h"

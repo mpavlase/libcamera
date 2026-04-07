@@ -1,11 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO Image Processing Algorithms
+ *
  * Based on RkISP1 Image Processing Algorithms
  *     src/ipa/rkisp1.cpp
  * Copyright (C) 2019, Google Inc.
- *
- * neo_ipa.cpp - NXP NEO Image Processing Algorithms
- * Copyright 2024-2026 NXP
  */
 
 #include <algorithm>
