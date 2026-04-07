@@ -583,7 +583,10 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::Exposure.id());
 		Span<const float> exposuresSpan =
 			exposureValue.get<Span<const float>>();
-		ASSERT(exposuresSpan.size() > context);
+		if (context > exposuresSpan.size()) {
+			LOG(NxpNeoIPA, Error) << "Exposure context out of range";
+			return;
+		}
 		exposure = exposuresSpan[context] * 1.0s;
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No exposure metadata";
@@ -601,7 +604,10 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::AnalogueGain.id());
 		Span<const float> aGainsSpan =
 			aGainValue.get<Span<const float>>();
-		ASSERT(aGainsSpan.size() > context);
+		if (context > aGainsSpan.size()) {
+			LOG(NxpNeoIPA, Error) << "Analog gain context out of range";
+			return;
+		}
 		aGain = aGainsSpan[context];
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No analog gain metadata";
@@ -613,7 +619,10 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::DigitalGain.id());
 		Span<const float> dGainsSpan =
 			dGainValue.get<Span<const float>>();
-		ASSERT(dGainsSpan.size() > context);
+		if (context > dGainsSpan.size()) {
+			LOG(NxpNeoIPA, Error) << "Digital gain context out of range";
+			return;
+		}
 		dGain = dGainsSpan[context];
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No digital gain metadata";
