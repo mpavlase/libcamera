@@ -31,7 +31,6 @@ struct DrcControlContext {
 	uint16_t globalDrcAlpha;
 	uint16_t extraGainOut;
 	uint16_t gamma;
-	uint16_t gammaOld;
 	uint16_t gammaFixed;
 };
 
@@ -62,13 +61,12 @@ public:
 
 private:
 	void configureGblDrcContext();
-	uint32_t binToLinear(uint32_t aBin) const;
+	uint32_t binToLinear(uint32_t bin) const;
 	void fixedModeLut();
 	void getMinMax(const std::vector<uint32_t> &inputHistogram, const uint32_t frame);
 	void getMin(const std::vector<uint32_t> &inputHistogram);
 	void getMax(const std::vector<uint32_t> &inputHistogram);
 	void getHistoryMax();
-	float applyNewPreGain();
 	void controlDynamicMode(const std::vector<uint32_t> &inputHistogram,
 				uint16_t *extraGainOut);
 	void dynamicModeSum(const std::vector<uint32_t> &inputHistogram, DrcLut *lutVars) const;
