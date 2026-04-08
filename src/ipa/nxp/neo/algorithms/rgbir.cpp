@@ -232,7 +232,11 @@ void RgbIr::prepare([[maybe_unused]] IPAContext &context, const uint32_t frame,
 }
 
 /**
- * \copydoc libcamera::ipa::Algorithm::parseIrCompression
+ * \brief Parse IR compression parameters from tuning data
+ * \param[in] tuningData The tuning data YAML object
+ * \param[in] key The key name for the compression configuration
+ * \param[out] irComp The IR compression structure to populate
+ * \return 0 on success, negative error code otherwise
  */
 int RgbIr::parseIrCompression(const YamlObject &tuningData, const char *key,
 			      IrCompression &irComp)
@@ -240,7 +244,7 @@ int RgbIr::parseIrCompression(const YamlObject &tuningData, const char *key,
 	const YamlObject &compObj = tuningData[key];
 	if (!compObj.isDictionary() || (!compObj.size())) {
 		LOG(NxpNeoAlgoRgbIr, Debug)
-			<< "compression " << key << "not configured";
+			<< "compression " << key << " not configured";
 		return -EINVAL;
 	}
 
