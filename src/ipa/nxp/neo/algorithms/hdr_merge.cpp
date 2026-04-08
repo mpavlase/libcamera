@@ -8,6 +8,7 @@
 #include "hdr_merge.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
@@ -61,7 +62,7 @@ namespace ipa::nxpneo::algorithms {
  *          ▼                   ▼
  *      to RGB Path        to IR path
  *
- * At first, image0 and image1 pixels (x,y) are scaled to the the same level by
+ * At first, image0 and image1 pixels (x,y) are scaled to the same level by
  * the gain, offset and shift parameters:
  * gimageN[x,y] = ((imageN[x,y] - gain-offset[N]) * gain-scale[N])
  * 							>> gain-shift[N]
@@ -484,9 +485,11 @@ void HdrMerge::computeParams(IPAContext &context)
 	lumaScaleThShift_ = kDefaultLumaScaleThShift;
 	for (unsigned int i = 0; i < kNumThresholds; i++) {
 		double lumaThValue =
-			(blendingWindow_[i] << bpps[0]) / 100;
-		lumaThScaled[i] = static_cast<uint32_t>(
-			std::round(lumaThValue * scaledFactorImg0)) >>
+			static_cast<double>(blendingWindow_[i] << bpps[0]) /
+			100.0;
+		lumaThScaled[i] =
+			static_cast<uint32_t>(std::round(
+				lumaThValue * scaledFactorImg0)) >>
 			lumaScaleThShift_;
 	}
 	lumaTh0_ = lumaThScaled[0];
