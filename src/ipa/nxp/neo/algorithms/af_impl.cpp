@@ -589,10 +589,6 @@ void AfImpl::doScan(double contrast, double phase, double conf)
 		} else if (scanState_ == ScanState::Fine || cfg_.speeds[speed_].stepFine <= 0.0) {
 			ftarget_ = pk;
 			scanState_ = ScanState::Settle;
-		} else if (scanState_ == ScanState::Coarse1 &&
-			   scanData_[0].contrast >= cfg_.speeds[speed_].contrastRatio * scanMaxContrast_) {
-			scanStep_ = -scanStep_;
-			scanState_ = ScanState::Coarse2;
 		} else if (scanStep_ >= 0.0) {
 			ftarget_ = std::min(pk + cfg_.speeds[speed_].stepFine,
 					    cfg_.ranges[range_].focusMax);

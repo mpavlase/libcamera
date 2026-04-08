@@ -44,7 +44,7 @@ using RgbyRegions = RPiController::RegionStats<RgbySums>;
 using FocusRegions = RPiController::RegionStats<uint64_t>;
 
 /*
- * PdafDat and PdafData definitions are imported from header
+ * PdafData definitions are imported from header
  * src/ipa/rpi/controller/pdaf_data.h
  */
 struct PdafData {
