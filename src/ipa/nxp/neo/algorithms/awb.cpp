@@ -72,7 +72,7 @@ namespace ipa::nxpneo::algorithms {
  *      to RGB Path        to IR path
  *
  * The user has the option to define in the calibration file if AWB gains should
- * be applied from OBWB0/1 or OBWB2 blocks. If not explictly defined, the
+ * be applied from OBWB0/1 or OBWB2 blocks. If not explicitly defined, the
  * algorithm will default to using OBWB2, unless the pipeline is operating in
  * HDR merge mode where OBWB0/1 has to be used. The user configuration, if
  * present, takes precedence over the default configuration.
@@ -96,8 +96,8 @@ namespace ipa::nxpneo::algorithms {
  *              valid values: { "obwb0/1", "obwb2"}
  *              default value: "obwb2" (non HDR-merge) or "obwb0/1" (HDR-merge)
  * awb-gains: location where the AWB gains should apply (in ISP or in sensor)
- *            valid values: { isp, sensor }
- *            default value: isp
+ *            valid values: { "isp", "sensor" }
+ *            default value: "isp"
  */
 
 LOG_DEFINE_CATEGORY(NxpNeoAlgoAwb)
@@ -469,7 +469,7 @@ void Awb::generateBlocks(IPAContext &context, IPAFrameContext &frameContext,
 		 * the programmed block size.
 		 */
 		double counted = ctempMemStats->ctemp_pix_cnt[i];
-		unsigned long sumR, sumG, sumB = 0;
+		unsigned long sumR = 0, sumG = 0, sumB = 0;
 
 		/*
 		 * Each statistics sum has 28 bits mantissa (bit[31:4]) and
