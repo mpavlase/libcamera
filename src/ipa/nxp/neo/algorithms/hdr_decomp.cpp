@@ -132,7 +132,7 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 	 */
 
 	const YamlObject &obj0 = tuningData["input0"];
-	if (obj0.isDictionary() || (obj0.size())) {
+	if (obj0.isDictionary() || obj0.size()) {
 		std::optional<std::vector<uint16_t>> points =
 			obj0["points"].getList<uint16_t>();
 		if (points && points->size() != kNumPoints) {
@@ -191,7 +191,7 @@ int HdrDecomp::init([[maybe_unused]] IPAContext &context,
 	 */
 
 	const YamlObject &obj1 = tuningData["input1"];
-	if (obj1.isDictionary() || (obj1.size())) {
+	if (obj1.isDictionary() || obj1.size()) {
 		std::optional<std::vector<uint16_t>> points =
 			obj1["points"].getList<uint16_t>();
 		if (points && points->size() != kNumPoints) {
