@@ -51,8 +51,6 @@ public:
 	using SetMap = std::map<Size, ipa::Interpolator<Components>>;
 
 private:
-	void copyTable(neoisp_vignetting_table_mem_params_s &vt,
-		       const Components &set);
 	const std::optional<BlockCount> blockCount(Size resolution) const;
 	const ipa::Interpolator<Components> sets(Size resolution) const;
 
@@ -69,9 +67,9 @@ private:
 	uint16_t blockCountX_;
 	/* Vertical block count */
 	uint16_t blockCountY_;
-	/* Number of pixels per block */
+	/* Block width in pixels */
 	uint16_t blockWidth_;
-	/* Number of rows per block */
+	/* Block height in pixels  */
 	uint16_t blockHeight_;
 	/* Horizontal scaling factor for each pixel within the block (u1.15) */
 	uint16_t blockStepX_;

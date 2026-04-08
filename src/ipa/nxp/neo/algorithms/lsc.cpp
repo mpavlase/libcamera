@@ -40,9 +40,8 @@ void interpolateVector(const std::vector<T> &a, const std::vector<T> &b,
 {
 	assert(a.size() == b.size());
 	dest.resize(a.size());
-	for (size_t i = 0; i < a.size(); i++) {
+	for (size_t i = 0; i < a.size(); i++)
 		dest[i] = a[i] * (1.0 - lambda) + b[i] * lambda;
-	}
 }
 
 template<>
@@ -67,10 +66,9 @@ namespace ipa::nxpneo::algorithms {
  * Due to the optical characteristics of the lens, the light intensity received
  * by the sensor is not uniform.
  *
- * The Lens Shading Correction algorithm applies multipliers to all pixels
- * to compensate for the lens shading effect. The coefficients are
- * specified with a set of 3 LUTs [r, g, b] for each color channel in the YAML
- * tuning file.
+ * The Lens Shading Correction algorithm applies multipliers to all pixels to
+ * compensate for the lens shading effect. The coefficients are specified with
+ * a set of 3 LUTs [r, g, b] for each color channel in the YAML tuning file.
  * Each coefficient is in 16 bits (u3.7) and each color channel LUT contains
  * 1024 coefficients (3072/3).
  *
@@ -80,36 +78,39 @@ namespace ipa::nxpneo::algorithms {
  * - "sets": Set of LUT entries composed of "r"/"g"/"b" channels associated
  *   with a specific "ct" color temperature.
  *
- * The ISP is partitionning the image in blocks.
- * Each LUT entry is mapped to each block of the image.
- * Before applying the LUT entry to the pixels of the block, the LUT coefficient
- * is converted into a factor following a 3-tap horizontal and vertical interpolation.
+ * The ISP is partitioning the image in blocks. Each LUT entry is mapped to
+ * each block of the image. Before applying the LUT entry to the pixels of
+ * the block, the LUT coefficient is converted into a factor following a 3-tap
+ * horizontal and vertical interpolation.
  * The horizontal interpolation applies for each row as below:
- * hFactor = 0.5 * (1 – alpha) * left_LUT + 0.5 * current_LUT + 0.5 * (alpha) * right_LUT
- *   where left_LUT: entry of the LUT of the left neighbor block,
- *         right_LUT: entry of the LUT of the right neighbor block,
- *         current_LUT: entry of the LUT of the block where the pixel being interpolated is located.
- *         alpha = (n * step / 32768),
- *           with n: the position of the pixel within the current block,
- *                step = 32768 / block_size (scaling factor defined in u1.15),
- *                block_size = image_size / block_count
- * The same vertical interpolation applies to the results of the block row interpolations.
- * At the edge of the image, the value of the missing neighbor is taken as equal to the
- * boundary valid value.
+ *	hFactor = 0.5 * (1 – alpha) * left_LUT +
+ *		  0.5 * current_LUT +
+ *		  0.5 * (alpha) * right_LUT
+ *	where left_LUT: entry of the LUT of the left neighbor block,
+ *	      right_LUT: entry of the LUT of the right neighbor block,
+ *	      current_LUT: entry of the LUT of the block where the pixel being
+ *			   interpolated is located.
+ *	      alpha = (n * step / 32768),
+ *		with n: the position of the pixel within the current block,
+ *		     step = 32768 / block_size (scaling factor in u1.15),
+ *		     block_size = image_size / block_count
+ * The same vertical interpolation applies to the results of the block row
+ * interpolations. At the edge of the image, the value of the missing neighbor
+ * is taken as equal to the boundary valid value.
  * If the resolution is not a multiple of the block count, the block size is
- * rounded up to the nearest integer to ensure covering all the pixels of the image.
- * In this case, the last block in a row (or column) will only get interpolated up to
- * the last pixel position.
+ * rounded up to the nearest integer to ensure covering all the pixels of the
+ * image. In this case, the last block in a row (or column) will only get
+ * interpolated up to the last pixel position.
  *
  * The maximum number of blocks supported is 1024.
- * If the image is partionned with less than 1024 blocks, the latest remaining
+ * If the image is partitioned with less than 1024 blocks, the latest remaining
  * LUT entries are not used.
  *
  * Each LUT is defined for a color temperature.
  * The LUT is interpolated according to the measured color temperature.
  * Hence the LSC algorithm depends on the AWB algorithm which is measuring
- * the color temperature. For this reason, the LSC algorithm should run after the
- * AWB algorithm.
+ * the color temperature. For this reason, the LSC algorithm should run after
+ * the AWB algorithm.
  */
 
 LOG_DEFINE_CATEGORY(NxpNeoAlgoLsc)
@@ -182,7 +183,7 @@ private:
 		if (lut.size() != kChannelLutSize) {
 			LOG(NxpNeoAlgoLsc, Error)
 				<< "Invalid '" << prop << "' values: expected "
-				<< NEO_VIGNETTING_TABLE_SIZE / 3
+				<< kChannelLutSize
 				<< " elements, got " << lut.size();
 			return {};
 		}
@@ -198,7 +199,7 @@ unsigned int quantize(unsigned int value, unsigned int step)
 	return std::lround(value / static_cast<double>(step)) * step;
 }
 
-} // namespace
+} /* namespace */
 
 LensShadingCorrection::LensShadingCorrection()
 	: readyToConfigure_(false), lastAppliedCt_(0), lastAppliedQuantizedCt_(0)
@@ -260,7 +261,7 @@ int LensShadingCorrection::init([[maybe_unused]] IPAContext &context,
 int LensShadingCorrection::configure([[maybe_unused]] IPAContext &context,
 				     [[maybe_unused]] const IPACameraSensorInfo &configInfo)
 {
-	/* clear lastAppliedCt_ and lastAppliedQuantizedCt_ */
+	/* Clear lastAppliedCt_ and lastAppliedQuantizedCt_ */
 	lastAppliedCt_ = 0;
 	lastAppliedQuantizedCt_ = 0;
 	readyToConfigure_ = false;
@@ -268,7 +269,7 @@ int LensShadingCorrection::configure([[maybe_unused]] IPAContext &context,
 	/* Get the block count according to the sensor resolution */
 	std::optional<BlockCount> bc = blockCount(configInfo.outputSize);
 	if (!bc.has_value()) {
-		/* Lsc is disabled for this resolution */
+		/* LSC is disabled for this resolution */
 		LOG(NxpNeoAlgoLsc, Warning) << "LSC is disabled: block count value for "
 					    << configInfo.outputSize
 					    << " not found in tuning file.";
@@ -276,13 +277,15 @@ int LensShadingCorrection::configure([[maybe_unused]] IPAContext &context,
 	}
 	blockCountX_ = bc.value().first;
 	blockCountY_ = bc.value().second;
-	blockWidth_ = ceil(configInfo.outputSize.width /
-			   static_cast<float>(blockCountX_));
-	blockHeight_ = ceil(configInfo.outputSize.height /
-			    static_cast<float>(blockCountY_));
+	blockWidth_ = std::ceil(configInfo.outputSize.width /
+				static_cast<float>(blockCountX_));
+	blockHeight_ = std::ceil(configInfo.outputSize.height /
+				 static_cast<float>(blockCountY_));
 	/* Scaling step factor (u1.15) */
-	blockStepX_ = floor(kScalingFractionalSize / static_cast<float>(blockWidth_));
-	blockStepY_ = floor(kScalingFractionalSize / static_cast<float>(blockHeight_));
+	blockStepX_ = std::floor(kScalingFractionalSize /
+				 static_cast<float>(blockWidth_));
+	blockStepY_ = std::floor(kScalingFractionalSize /
+				 static_cast<float>(blockHeight_));
 
 	LOG(NxpNeoAlgoLsc, Debug) << "blockCount=[" << blockCountX_
 				  << ", " << blockCountY_
@@ -294,7 +297,7 @@ int LensShadingCorrection::configure([[maybe_unused]] IPAContext &context,
 	/* Get the LUT sets according to the sensor resolution */
 	sets_ = sets(configInfo.outputSize);
 	if (sets_.data().empty()) {
-		/* Lsc is disabled for this resolution */
+		/* LSC is disabled for this resolution */
 		LOG(NxpNeoAlgoLsc, Warning) << "LSC is disabled: Sets for "
 					    << configInfo.outputSize
 					    << " not found in tuning file";
@@ -351,7 +354,7 @@ void LensShadingCorrection::queueRequest(IPAContext &context,
 		lsc.enabled = *lscEnable;
 
 		LOG(NxpNeoAlgoLsc, Debug)
-			<< (lsc.enabled ? "Enabling" : "Disabling") << " Lsc";
+			<< (lsc.enabled ? "Enabling" : "Disabling") << " LSC";
 
 		frameContext.lsc.update = true;
 	}
@@ -368,7 +371,7 @@ void LensShadingCorrection::prepare(IPAContext &context,
 				    NxpNeoParams *params)
 {
 	if (!readyToConfigure_)
-		/* No Lsc is configured for current context */
+		/* No LSC is configured for current context */
 		return;
 
 	uint32_t ct = context.activeState.awb.temperatureK;
