@@ -39,7 +39,6 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	void parseYaml(const YamlObject &tuningData);
 	void setParameters(NxpNeoParams *params,
 			   const Matrix<float, 3, 3> &matrix,
 			   const Matrix<int32_t, 3, 1> &offsets);
