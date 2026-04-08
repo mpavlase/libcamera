@@ -34,7 +34,7 @@ public:
 	{
 	}
 
-	uint32_t irOps() const { return irOps_; };
+	uint32_t irOps() const { return irOps_; }
 	void setIrOps(uint32_t ops) { irOps_ = ops; }
 
 private:
