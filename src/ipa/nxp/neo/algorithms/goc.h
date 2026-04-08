@@ -47,8 +47,8 @@ public:
 
 	/*
 	 * Transfer function formula:
-	 * L' = LinearGain * L						(for R <= LinearThreshold)
-	 * L' = NonLinearGain * (L^(GammaInverse) - NonLinearOffset)	(for R > LinearThreshold)
+	 * L' = LinearGain * L						(for L <= LinearThreshold)
+	 * L' = NonLinearGain * (L^(GammaInverse) - NonLinearOffset)	(for L > LinearThreshold)
 	 */
 	struct XferFunc {
 		float linearGain;

@@ -303,16 +303,17 @@ void GammaOutCorrection::setXferParams(neoisp_gcm_cfg_s &gcm) const
 void GammaOutCorrection::setEncodingParams(neoisp_gcm_cfg_s &gcm, const IPARange range) const
 {
 	/*
-	 * The default offsets are set for 8-bit full-range.
-	 * In limited range the offsets are defined by standard as: (16, 128, 128)
-	 * for 8-bit range.
-	 * However ISP offsets are defined for 12-bit range, hence the offsets
-	 * defined by standard are converted for 12-bit range.
+	 * The offsets are defined for 8-bit full-range
+	 * and converted for ISP 12-bit range.
+	 * Full range: (0, 128, 128) for Y, Cb, Cr
+	 * Limited range: (16, 128, 128) for Y, Cb, Cr
 	 */
 	uint32_t yOffset = (range == IPARangeLimited) ? 16 : ycbcrEnc_.offsets[0][0];
-	gcm.ooffsets[0] = encOffsetsToParams(yOffset);
-	gcm.ooffsets[1] = encOffsetsToParams(ycbcrEnc_.offsets[1][0]);
-	gcm.ooffsets[2] = encOffsetsToParams(ycbcrEnc_.offsets[2][0]);
+	gcm.ooffsets[0] = encOffsetsToParams(static_cast<uint8_t>(yOffset));
+	gcm.ooffsets[1] = encOffsetsToParams(
+		static_cast<uint8_t>(ycbcrEnc_.offsets[1][0]));
+	gcm.ooffsets[2] = encOffsetsToParams(
+		static_cast<uint8_t>(ycbcrEnc_.offsets[2][0]));
 
 	/*
 	 * The default matrices are set for full-range.
