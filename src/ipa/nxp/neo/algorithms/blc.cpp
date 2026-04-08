@@ -28,7 +28,7 @@ namespace ipa::nxpneo::algorithms {
  * \class BlackLevelCorrection
  * \brief NXP NEO Black Level Correction control
  *
- * Camera sensors do no output a zero value for the color channels of the black
+ * Camera sensors do not output a zero value for the color channels of the black
  * pixels. Black Level Correction applies an offset in the ISP to each color
  * channel in order to shift each black pixel color channel to a zero value.
  * Libcamera convention is to represent the BLC offsets as signed values,
@@ -191,7 +191,7 @@ int BlackLevelCorrection::init(IPAContext &context, const YamlObject &tuningData
 		<< "Calibration BLC offsets R " << calibrationOffsets_[0]
 		<< " gR " << calibrationOffsets_[1]
 		<< " gB " << calibrationOffsets_[2] << " B " << calibrationOffsets_[3]
-		<< " Reference bit-depth " << referenceBitDepth.value_or(0);
+		<< " Reference bit-depth " << referenceBitDepth_.value_or(0);
 
 	return 0;
 }
@@ -287,6 +287,11 @@ int BlackLevelCorrection::configure(IPAContext &context,
 			obwb != 1 ? sensorOffsets[0] : sensorOffsets[1];
 		ChannelArray<uint16_t> &obwbOffset = blcConfig.obwbOffsets[obwb];
 		applyGain(sensorOffset, obwbOffset, gainLeftShift[obwb]);
+
+		LOG(NxpNeoAlgoBlc, Debug)
+			<< "Sensor mode BLC offsets OBWB" << +obwb
+			<< " R " << obwbOffset[0] << " gR " << obwbOffset[1]
+			<< " gB " << obwbOffset[2] << " B " << obwbOffset[3];
 	}
 
 	/*
@@ -337,7 +342,7 @@ int BlackLevelCorrection::configure(IPAContext &context,
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
+void BlackLevelCorrection::prepare(IPAContext &context,
 				   [[maybe_unused]] const uint32_t frame,
 				   IPAFrameContext &frameContext,
 				   NxpNeoParams *params)
@@ -394,19 +399,13 @@ void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
 			config->gb_ctrl_gain = gain;
 			config->b_ctrl_gain = gain;
 		}
-
-		if (frame == 0)
-			LOG(NxpNeoAlgoBlc, Debug)
-				<< "Sensor mode BLC offsets OBWB" << +obwb << " R " << offsets[0]
-				<< " gR " << offsets[1]
-				<< " gB " << offsets[2] << " B " << offsets[3];
 	}
 }
 
 /**
  * \copydoc libcamera::ipa::Algorithm::process
  */
-void BlackLevelCorrection::process([[maybe_unused]] IPAContext &context,
+void BlackLevelCorrection::process(IPAContext &context,
 				   [[maybe_unused]] const uint32_t frame,
 				   [[maybe_unused]] IPAFrameContext &frameContext,
 				   [[maybe_unused]] const NxpNeoStats *stats,
