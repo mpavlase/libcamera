@@ -81,7 +81,7 @@ namespace ipa::nxpneo::algorithms {
  * with 12-bit bit depth: rescaling for input0 and input1 is done to
  * 16-bit regardless of the PIPECONF.LPALIGN setting.
  *
- * Tables below recaps the ISP internal pipeline pixel data alignment depending
+ * Tables below recap the ISP internal pipeline pixel data alignment depending
  * on the input camera bit per pixel (ibpp) and the LPALIGN0/1 configuration.
  *
  * input0 (LPALIGN0)
