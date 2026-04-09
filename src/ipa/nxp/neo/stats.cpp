@@ -33,14 +33,15 @@ struct BlockStatsTypeInfo {
 	size_t offset;
 };
 
-#define NXPNEO_BLOCK_STATS_TYPE_ENTRY(block, id, category, type, member)       \
-	{                                                                      \
-		BlockStatsType::block,                                         \
-		{                                                              \
-			NEOISP_STATS_BLK_##id,                                 \
-			sizeof(struct neoisp_##type##_stats_s),                \
-			offsetof(struct neoisp_meta_stats_s, category.member), \
-		}                                                              \
+#define NXPNEO_BLOCK_STATS_TYPE_ENTRY(block, id, category, type, member) \
+	{                                                                \
+		BlockStatsType::block,                                   \
+		{                                                        \
+			NEOISP_STATS_BLK_##id,                           \
+				sizeof(struct neoisp_##type##_stats_s),  \
+				offsetof(struct neoisp_meta_stats_s,     \
+					 category.member),               \
+		}                                                        \
 	}
 
 const std::map<BlockStatsType, BlockStatsTypeInfo> kBlockTypeInfo = {
@@ -61,10 +62,9 @@ const std::map<BlockStatsType, BlockStatsTypeInfo> kBlockTypeInfo = {
 
 NxpNeoStatsBlockBase::NxpNeoStatsBlockBase(NxpNeoStats *stats,
 					   BlockStatsType type, const Span<uint8_t> &data)
-	: stats_(stats), type_(type)
+	: stats_(stats)
 {
 	if (stats_->isExtensible()) {
-		header_ = data.subspan(0, sizeof(neoisp_ext_stats_block_header_s));
 		data_ = data.subspan(sizeof(neoisp_ext_stats_block_header_s));
 	} else {
 		data_ = data;
@@ -127,7 +127,7 @@ Span<uint8_t> NxpNeoStats::block(BlockStatsType type) const
 	auto infoIt = kBlockTypeInfo.find(type);
 	if (infoIt == kBlockTypeInfo.end()) {
 		LOG(NxpNeoStats, Error)
-			<< "Invalid parameters block type "
+			<< "Invalid statistics block type "
 			<< utils::to_underlying(type);
 		return {};
 	}
