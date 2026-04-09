@@ -69,22 +69,23 @@ NXPNEO_SET_FEATURE_BIT_ENTRY(VigTable, vignetting_table)
 NXPNEO_SET_FEATURE_BIT_ENTRY(DrcGlobalTonemap, drc_global_tonemap)
 NXPNEO_SET_FEATURE_BIT_ENTRY(DrcLocalTonemap, drc_local_tonemap)
 
-#define NXPNEO_BLOCK_TYPE_ENTRY(block, id, type, ext, param, category)         \
-	{                                                                      \
-		BlockParamsType::block,                                        \
-		{                                                              \
-			NEOISP_PARAM_BLK_##id,                                 \
-			sizeof(struct neoisp_##type##_##ext##_s),              \
-			offsetof(struct neoisp_meta_params_s, category.param), \
-			setFeatureBit##block,                                  \
-		}                                                              \
+#define NXPNEO_BLOCK_TYPE_ENTRY(block, id, type, ext, param, category)    \
+	{                                                                 \
+		BlockParamsType::block,                                   \
+		{                                                         \
+			NEOISP_PARAM_BLK_##id,                            \
+				sizeof(struct neoisp_##type##_##ext##_s), \
+				offsetof(struct neoisp_meta_params_s,     \
+					 category.param),                 \
+				setFeatureBit##block,                     \
+		}                                                         \
 	}
 
 #define NXPNEO_BLOCK_TYPE_ENTRY_REGS(block, id, type) \
 	NXPNEO_BLOCK_TYPE_ENTRY(block, id, type, cfg, type, regs)
 
 #define NXPNEO_BLOCK_TYPE_ENTRY_REGS_ARRAY(block, id, type, idx) \
-	NXPNEO_BLOCK_TYPE_ENTRY(block, id, type, cfg, type [idx], regs)
+	NXPNEO_BLOCK_TYPE_ENTRY(block, id, type, cfg, type[idx], regs)
 
 #define NXPNEO_BLOCK_TYPE_ENTRY_MEMS(block, id, type, param) \
 	NXPNEO_BLOCK_TYPE_ENTRY(block, id, type, mem_params, param, mems)
@@ -223,7 +224,7 @@ Span<uint8_t> NxpNeoParams::block(BlockParamsType type)
 	if (cacheIt != blocks_.end())
 		return cacheIt->second;
 
-	/* Make sure we don't run out of space, and to align 8-bytes */
+	/* Make sure we don't run out of space and align to 8 bytes */
 	size_t size = (sizeof(struct neoisp_ext_params_block_header_s) + info.size + 7) & ~7;
 	if (size > (data_.size() - used_)) {
 		LOG(NxpNeoParams, Error)

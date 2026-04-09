@@ -175,7 +175,7 @@ private:
 
 	Span<uint8_t> block(BlockParamsType type);
 	void setBlockUpdate(BlockParamsType type, bool update);
-	bool isExtensible()
+	bool isExtensible() const
 	{
 		return apiVersion_ != NEOISP_LEGACY_META_BUFFER;
 	}
@@ -190,4 +190,4 @@ private:
 
 } /* namespace ipa::nxpneo */
 
-} /* namespace libcamera*/
+} /* namespace libcamera */
