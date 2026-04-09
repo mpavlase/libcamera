@@ -371,7 +371,7 @@ uint32_t CameraHelperMx95mbcam::gainCode(double gain) const
 double CameraHelperMx95mbcam::gain(uint32_t gainCode) const
 {
 	/* V4L2_CID_ANALOGUE_GAIN code is Q16.16 */
-	return (gainCode * 1.0 /  (1 << 16));
+	return (gainCode * 1.0 / (1 << 16));
 }
 
 /**

@@ -282,7 +282,7 @@ int CameraHelperOs08a20::sensorControlsToMetaData(const ControlList *sensorCtrls
 	if (!exposureCtrl.isNone()) {
 		Span<const uint32_t> exposures = exposureCtrl.get<Span<const uint32_t>>();
 		ASSERT(exposures.size() == 2);
-		Duration lineLength= hblankToLineLength(mode_.hblank);
+		Duration lineLength = hblankToLineLength(mode_.hblank);
 		exposureArray[0] = exposure(exposures[0], lineLength) / 1.0s;
 		exposureArray[1] = exposure(exposures[1], lineLength) / 1.0s;
 	} else {

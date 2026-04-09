@@ -22,7 +22,7 @@ public:
 /* Gain conversions come from RPi cam_helper_imx219.cpp implementation */
 uint32_t CameraHelperImx219::gainCode(double gain) const
 {
-	return (uint32_t)(256 - 256 / gain);
+	return static_cast<uint32_t>(256 - 256 / gain);
 }
 
 double CameraHelperImx219::gain(uint32_t gainCode) const

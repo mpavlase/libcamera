@@ -35,6 +35,7 @@ private:
 	static constexpr double kGainMin = 1.1875;
 	static constexpr double kGainMax = 8.0;
 
+	/* \todo Check gainCode to ensure it is included between min and max */
 	static constexpr uint32_t kCodeMin = 3;
 	static constexpr uint32_t kCodeMax = 46;
 };
@@ -58,9 +59,9 @@ double CameraHelperAr0235::gain(uint32_t gainCode) const
 	if (gainCode < 16)
 		return 1.0 + gainCode * 0.0625;
 	else if (gainCode < 32)
-		return 2.0 + gainCode * 0.125;
+		return 2.0 + (gainCode - 16) * 0.125;
 	else
-		return 4.0 + gainCode * 0.25;
+		return 4.0 + (gainCode - 32) * 0.25;
 }
 
 REGISTER_CAMERA_HELPER("ar0235", CameraHelperAr0235)

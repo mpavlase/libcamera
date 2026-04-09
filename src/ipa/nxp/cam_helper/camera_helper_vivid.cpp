@@ -21,7 +21,7 @@ public:
 
 uint32_t CameraHelperVivid::gainCode([[maybe_unused]] double gain) const
 {
-	return (uint32_t)1;
+	return static_cast<uint32_t>(1);
 }
 
 double CameraHelperVivid::gain([[maybe_unused]] uint32_t gainCode) const
