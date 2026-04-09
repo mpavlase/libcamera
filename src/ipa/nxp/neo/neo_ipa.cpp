@@ -10,7 +10,7 @@
  */
 
 #include <algorithm>
-#include <math.h>
+#include <cmath>
 #include <queue>
 #include <sstream>
 #include <stdint.h>
@@ -89,9 +89,9 @@ private:
 			    ControlInfoMap *ipaControls);
 	void updateFrameContextSensorMeta(const uint32_t frame, const IPAContextType context);
 	void setInitialControls();
-	void setControls(unsigned int frame);
+	void setControls(const uint32_t frame);
 	std::string controlListToString(const ControlList *ctrls) const;
-	std::string logSensorParams(const unsigned int frame,
+	std::string logSensorParams(const uint32_t frame,
 				    const ControlList *ctrlsApplied,
 				    const ControlList *ctrlsToApply) const;
 
@@ -249,9 +249,10 @@ int IPANxpNeo::configure(const IPAConfigInfo &ipaConfig,
 
 	/* Initialize active RGB/Ir contexts. */
 	context_.configuration.activeContexts =
-		context_.configuration.pipelineMode == IPAModeTypeRgbIrDual ?
-		std::vector<IPAContextType> { IPAContextTypeRgb, IPAContextTypeIr } :
-		std::vector<IPAContextType> { IPAContextTypeRgb };
+		context_.configuration.pipelineMode == IPAModeTypeRgbIrDual
+			? std::vector<IPAContextType>{ IPAContextTypeRgb,
+						       IPAContextTypeIr }
+			: std::vector<IPAContextType>{ IPAContextTypeRgb };
 
 	const IPACameraSensorInfo &info = ipaConfig.sensorInfo;
 	sensorControlList_ = ipaConfig.sensorControlList;
@@ -391,9 +392,15 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 
 	/* Prepare parameters buffer. */
 	auto paramsIter = bufferIds.find(IPABufferTypeParams);
+	/* \todo Return error if params buffer is not available instead of ASSERT */
 	unsigned int paramsBufferId =
 		paramsIter != bufferIds.end() ? paramsIter->second : 0;
-	ASSERT(mappedBuffers_.count(paramsBufferId));
+	if (!mappedBuffers_.count(paramsBufferId)) {
+		LOG(NxpNeoIPA, Error)
+			<< "Parameters buffer " << paramsBufferId
+			<< " not mapped for frame " << frame;
+		return;
+	}
 
 	NxpNeoParams params(context_.hw.apiVersion,
 			    mappedBuffers_.at(paramsBufferId).planes()[0]);
@@ -426,7 +433,13 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 	auto statsIter = bufferIds.find(IPABufferTypeStats);
 	unsigned int statsBufferId =
 		statsIter != bufferIds.end() ? statsIter->second : 0;
-	ASSERT(mappedBuffers_.count(statsBufferId));
+	if (!mappedBuffers_.count(statsBufferId)) {
+		LOG(NxpNeoIPA, Error)
+			<< "Statistics buffer " << statsBufferId
+			<< " not mapped for frame " << frame;
+		return;
+	}
+
 	const NxpNeoStats stats(context_.hw.apiVersion,
 				mappedBuffers_.at(statsBufferId).planes()[0]);
 
@@ -492,7 +505,7 @@ void IPANxpNeo::updateSensorConfig(const IPACameraSensorInfo &sensorInfo,
 	context_.camHelper->controlInfoMapGetAnalogGainRange(
 		&sensorControls, &vMinGain, &vMaxGain, &vDefGain);
 
- 	const ControlInfo &v4l2VBlank = sensorControls.find(V4L2_CID_VBLANK)->second;
+	const ControlInfo &v4l2VBlank = sensorControls.find(V4L2_CID_VBLANK)->second;
 
 	LOG(NxpNeoIPA, Debug)
 		<< "Exposure: [" << vMinExposure[0] << ", " << vMaxExposure[0]
@@ -660,7 +673,7 @@ void IPANxpNeo::setInitialControls()
 	setSensorControls.emit(frame, ctrls);
 }
 
-void IPANxpNeo::setControls(unsigned int frame)
+void IPANxpNeo::setControls(const uint32_t frame)
 {
 	/*
 	 * \todo The frame number is most likely wrong here, we need to take
@@ -668,7 +681,10 @@ void IPANxpNeo::setControls(unsigned int frame)
 	 */
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 
-	/* Send controls only if algo are processed for all active contexts. */
+	/*
+	 * Send controls only if algorithms are processed for
+	 * all active contexts.
+	 */
 	for (const auto &processedIt : frameContext.processed)
 		if (!processedIt.second)
 			return;
@@ -677,8 +693,8 @@ void IPANxpNeo::setControls(unsigned int frame)
 
 	/*
 	 * Skip control setting for frame 0 for which the frame context
-	 * doesn't have a relevant configuration for the exposure, analog gain and
-	 * white balance gains..
+	 * doesn't have a relevant configuration for the exposure,
+	 * analogue gain and white balance gains.
 	 * Indeed the frame context is not initialized at startup.
 	 *
 	 * This workaround prevents some frames from flashing at startup.
@@ -734,7 +750,7 @@ std::string IPANxpNeo::controlListToString(const ControlList *ctrls) const
 	return log.str();
 }
 
-std::string IPANxpNeo::logSensorParams(const unsigned int frame,
+std::string IPANxpNeo::logSensorParams(const uint32_t frame,
 				       const ControlList *ctrlsApplied,
 				       const ControlList *ctrlsToApply) const
 {
