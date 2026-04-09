@@ -11,6 +11,11 @@
 
 #pragma once
 
+#include <array>
+#include <map>
+#include <optional>
+#include <vector>
+
 #include <linux/nxp_neoisp.h>
 
 #include <libcamera/base/utils.h>
@@ -240,4 +245,4 @@ struct IPAContext {
 
 } /* namespace ipa::nxpneo */
 
-} /* namespace libcamera*/
+} /* namespace libcamera */
