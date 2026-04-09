@@ -18,7 +18,6 @@
 #include <libipa/module.h>
 
 #include "ipa_context.h"
-
 #include "params.h"
 #include "stats.h"
 
