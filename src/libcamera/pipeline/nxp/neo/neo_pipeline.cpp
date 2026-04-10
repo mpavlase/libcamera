@@ -66,26 +66,103 @@ namespace nxpneo {
  * both interfaces self-contained though keeping trivial enums conversion.
  */
 
-enum BufferType {
-	BufferTypeImage0,
-	BufferTypeImage1,
-	BufferTypeEData,
-	BufferTypeParams,
-	BufferTypeStats,
-	BufferTypeFrame,
-	BufferTypeIr,
+/**
+ * \enum BufferType
+ * \brief Types of buffers used in the Neo pipeline
+ *
+ * This enumeration defines the different buffer types that are tracked and
+ * managed throughout the pipeline processing stages.
+ *
+ * \var BufferType::Image0
+ * \brief Primary image input buffer from the front-end (or raw stream buffer)
+ *
+ * \var BufferType::Image1
+ * \brief Secondary image input buffer from the front-end (used in HDR merge or
+ * RGBIr dual mode)
+ *
+ * \var BufferType::EData
+ * \brief Embedded data buffer containing sensor metadata
+ *
+ * \var BufferType::Params
+ * \brief ISP parameters buffer exchanged between pipeline handler and IPA
+ *
+ * \var BufferType::Stats
+ * \brief ISP statistics buffer exchanged between pipeline handler and IPA
+ *
+ * \var BufferType::Frame
+ * \brief ISP output buffer for the main processed frame stream
+ *
+ * \var BufferType::Ir
+ * \brief ISP output buffer for the infrared stream (RGBIr sensors)
+ */
+enum class BufferType {
+	Image0,
+	Image1,
+	EData,
+	Params,
+	Stats,
+	Frame,
+	Ir,
 };
 
-enum ContextType {
-	ContextTypeRgb,
-	ContextTypeIr,
+/**
+ * \enum CameraContext
+ * \brief Camera context types for the Neo pipeline
+ *
+ * Some sensors support multiple register banks (contexts) that can be
+ * configured independently and applied in sequence to produce different
+ * types of image outputs. This enumeration defines the context types used in
+ * the pipeline to distinguish between RGB and infrared processing paths.
+ *
+ * \var CameraContext::Rgb
+ * \brief RGB context for standard color image processing
+ *
+ * \var CameraContext::Ir
+ * \brief Infrared context for IR image processing (RGBIr sensors)
+ */
+enum class CameraContext {
+	Rgb,
+	Ir,
 };
 
-enum ModeType {
-	ModeTypeStandard,
-	ModeTypeHdrMerge,
-	ModeTypeRgbIr,
-	ModeTypeRgbIrDual,
+/**
+ * \enum PipelineMode
+ * \brief Operating modes for the Neo ISP pipeline
+ *
+ * This enumeration defines the different operating modes supported by the
+ * Neo pipeline, which determine how sensor data is processed and which streams
+ * are available.
+ *
+ * \var PipelineMode::Standard
+ * \brief Standard single-frame processing mode
+ *
+ * Standard mode processes a single raw image from the sensor through the ISP to
+ * produce RGB/YUV output streams.
+ *
+ * \var PipelineMode::HdrMerge
+ * \brief High Dynamic Range merge mode
+ *
+ * HDR merge mode combines multiple exposures (long and short frames) from the
+ * sensor to produce a single high dynamic range output image.
+ *
+ * \var PipelineMode::RgbIr
+ * \brief RGB and Infrared processing mode
+ *
+ * RGBIr mode processes data from sensors with both RGB and infrared pixels,
+ * producing both RGB and IR output streams from a single context.
+ *
+ * \var PipelineMode::RgbIrDual
+ * \brief Dual-context RGB and Infrared mode
+ *
+ * RGBIr dual mode uses multiple sensor contexts to separately capture and
+ * process RGB and infrared optimized pixels data, producing independent RGB and
+ * IR output streams.
+ */
+enum class PipelineMode {
+	Standard,
+	HdrMerge,
+	RgbIr,
+	RgbIrDual,
 };
 
 } /* namespace nxpneo */
@@ -185,7 +262,7 @@ public:
 		int completeBuffer(const FrameBuffer *buffer);
 		bool isBufferPending(const std::vector<BufferType> &bufferTypes) const;
 		bool isContextComplete() const;
-		FrameBuffer *buffer(BufferType) const;
+		FrameBuffer *buffer(BufferType bufferType) const;
 
 		bool paramDequeued_;
 		bool metadataProcessed_;
@@ -203,7 +280,7 @@ public:
 
 		unsigned int id_;
 		Request *request_;
-		std::map<ContextType, InfoContext> contexts_;
+		std::map<CameraContext, InfoContext> contexts_;
 
 	private:
 		friend NxpNeoFrames;
@@ -220,7 +297,7 @@ public:
 	Info *create(Request *request);
 
 	Info *find(unsigned int id) const;
-	std::pair<Info *, ContextType> find(FrameBuffer *buffer) const;
+	std::pair<Info *, CameraContext> find(FrameBuffer *buffer) const;
 	Info *find(Request *request) const;
 
 private:
@@ -278,7 +355,7 @@ public:
 		return feCamera_->formats().mbusCodePixelFormatsMap;
 	}
 
-	NeoDevice *neoDevice(ContextType context = ContextTypeRgb) const;
+	NeoDevice *neoDevice(CameraContext context = CameraContext::Rgb) const;
 	FrontEndHandler *frontEnd() const { return frontEnd_; }
 
 	bool rawStreamOnly_ = false;
@@ -306,7 +383,7 @@ private:
 	void cancelCompleteRequest(NxpNeoFrames::Info *info);
 	void tryCompleteRequest(NxpNeoFrames::Info *info);
 
-	void feInputBufferReady(NxpNeoFrames::Info *info, ContextType context);
+	void feInputBufferReady(NxpNeoFrames::Info *info, CameraContext context);
 	void feImage0BufferReady(FrameBuffer *buffer);
 	void feImage1BufferReady(FrameBuffer *buffer);
 	void feEDataBufferReady(FrameBuffer *buffer);
@@ -325,9 +402,9 @@ private:
 	void ipaSetSensorControls(unsigned int id,
 				  const ControlList &sensorControls);
 	void ipaSetLensControls(const ControlList &lensControls);
-	unsigned int contextCount() { return mode_ == ModeTypeRgbIrDual ? 2 : 1; }
+	unsigned int contextCount() { return mode_ == PipelineMode::RgbIrDual ? 2 : 1; }
 
-	const std::vector<ContextType> &contexts() const { return contexts_; }
+	const std::vector<CameraContext> &contexts() const { return contexts_; }
 
 	NxpNeoFrames frameInfos_;
 	bool alternatedRawStream_ = false;
@@ -342,13 +419,13 @@ private:
 
 	FrontEndHandler *frontEnd_;
 	FrontEndCamera *feCamera_;
-	std::map<ContextType, NeoDevice *> neoDevices_;
+	std::map<CameraContext, NeoDevice *> neoDevices_;
 
-	std::vector<ContextType> contexts_;
+	std::vector<CameraContext> contexts_;
 	std::map<FEStream, std::vector<std::unique_ptr<FrameBuffer>>> feBufferPools_;
 	std::map<FEStream, V4L2DeviceFormat> feVDevFormats_;
 
-	ModeType mode_ = ModeTypeStandard;
+	PipelineMode mode_ = PipelineMode::Standard;
 
 	std::map<BufferType, std::queue<FrameBuffer *>> availableBuffersMap_;
 
@@ -448,9 +525,9 @@ private:
 namespace {
 
 const std::map<FEStream, BufferType> streamToBufferType = {
-	{ FEStream::Image0, BufferTypeImage0 },
-	{ FEStream::Image1, BufferTypeImage1 },
-	{ FEStream::EData, BufferTypeEData },
+	{ FEStream::Image0, BufferType::Image0 },
+	{ FEStream::Image1, BufferType::Image1 },
+	{ FEStream::EData, BufferType::EData },
 };
 
 }
@@ -496,13 +573,13 @@ bool NxpNeoFrames::InfoContext::isBufferPending(
 bool NxpNeoFrames::InfoContext::isContextComplete() const
 {
 	const std::vector<BufferType> allBufferTypes = {
-		BufferTypeImage0,
-		BufferTypeImage1,
-		BufferTypeEData,
-		BufferTypeParams,
-		BufferTypeStats,
-		BufferTypeFrame,
-		BufferTypeIr,
+		BufferType::Image0,
+		BufferType::Image1,
+		BufferType::EData,
+		BufferType::Params,
+		BufferType::Stats,
+		BufferType::Frame,
+		BufferType::Ir,
 	};
 	bool buffersComplete = !isBufferPending(allBufferTypes);
 	bool complete = buffersComplete &&
@@ -511,8 +588,7 @@ bool NxpNeoFrames::InfoContext::isContextComplete() const
 	return complete;
 }
 
-FrameBuffer *NxpNeoFrames::InfoContext::buffer(
-	BufferType bufferType) const
+FrameBuffer *NxpNeoFrames::InfoContext::buffer(BufferType bufferType) const
 {
 	FrameBuffer *buffer = nullptr;
 	auto it = buffers_.find(bufferType);
@@ -593,7 +669,7 @@ NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id) const
 	return nullptr;
 }
 
-std::pair<NxpNeoFrames::Info *, ContextType> NxpNeoFrames::find(FrameBuffer *buffer) const
+std::pair<NxpNeoFrames::Info *, CameraContext> NxpNeoFrames::find(FrameBuffer *buffer) const
 {
 	for (auto &itInfo : frameInfo_) {
 		Info *info = itInfo.second.get();
@@ -605,7 +681,7 @@ std::pair<NxpNeoFrames::Info *, ContextType> NxpNeoFrames::find(FrameBuffer *buf
 
 	LOG(NxpNeoPipe, Debug) << "Can't find tracking information from buffer";
 
-	return { nullptr, ContextTypeRgb };
+	return { nullptr, CameraContext::Rgb };
 }
 
 NxpNeoFrames::Info *NxpNeoFrames::find(Request *request) const
@@ -626,7 +702,8 @@ FrameBuffer *NxpNeoFrames::allocBuffer(BufferType bufferType)
 	auto &buffersMap = data_->availableBuffersMap_;
 	auto it = buffersMap.find(bufferType);
 	if (it == buffersMap.end()) {
-		LOG(NxpNeoPipe, Error) << " No buffers for type " << bufferType;
+		LOG(NxpNeoPipe, Error)
+			<< " No buffers for type " << static_cast<int>(bufferType);
 		return nullptr;
 	}
 
@@ -650,11 +727,14 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 	unsigned int _contextCount = data_->contextCount();
 	for (const auto &[type, availableBuffers] : data_->availableBuffersMap_) {
 		unsigned int count =
-			type == BufferTypeEData || type == BufferTypeParams || type == BufferTypeStats
+			type == BufferType::EData ||
+					type == BufferType::Params ||
+					type == BufferType::Stats
 				? _contextCount
 				: 1;
 		if (availableBuffers.size() < count) {
-			LOG(NxpNeoPipe, Warning) << " buffers underrun type " << type;
+			LOG(NxpNeoPipe, Warning)
+				<< " buffers underrun type " << static_cast<int>(type);
 			return nullptr;
 		}
 	}
@@ -667,9 +747,9 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 	info->rawStreamBuffer_ = request->findBuffer(&data_->streamRaw_);
 	info->frameStreamBuffer_ = request->findBuffer(&data_->streamFrame_);
 	info->irStreamBuffer_ = request->findBuffer(&data_->streamIr_);
-	info->contexts_.insert({ ContextTypeRgb, {} });
-	if (data_->mode_ == ModeTypeRgbIrDual)
-		info->contexts_.insert({ ContextTypeIr, {} });
+	info->contexts_.insert({ CameraContext::Rgb, {} });
+	if (data_->mode_ == PipelineMode::RgbIrDual)
+		info->contexts_.insert({ CameraContext::Ir, {} });
 
 	bool evenRequest = (id % 2 == 0);
 	for (auto &[context, infoContext] : info->contexts_) {
@@ -690,22 +770,29 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 		FrameBuffer *image0Buffer = nullptr;
 		FrameBuffer *image1Buffer = nullptr;
 
-		unsigned int mode = data_->mode_;
-		bool hasImage0 = (mode != ModeTypeRgbIrDual || context == ContextTypeRgb);
-		bool hasImage1 = (mode == ModeTypeHdrMerge ||
-				  (mode == ModeTypeRgbIrDual && context == ContextTypeIr));
+		PipelineMode mode = data_->mode_;
+		bool hasImage0 = (mode != PipelineMode::RgbIrDual ||
+				  context == CameraContext::Rgb);
+		bool hasImage1 = (mode == PipelineMode::HdrMerge ||
+				  (mode == PipelineMode::RgbIrDual &&
+				   context == CameraContext::Ir));
 
 		bool alternatedRawStream = data_->alternatedRawStream_;
 		if (info->rawStreamBuffer_) {
-			if (alternatedRawStream && mode == ModeTypeRgbIrDual) {
-				unsigned int rawContext = evenRequest ? ContextTypeRgb : ContextTypeIr;
+			if (alternatedRawStream &&
+			    mode == PipelineMode::RgbIrDual) {
+				CameraContext rawContext =
+					evenRequest
+						? CameraContext::Rgb
+						: CameraContext::Ir;
 				if (context == rawContext) {
 					if (hasImage0)
 						image0Buffer = info->rawStreamBuffer_;
 					else
 						image1Buffer = info->rawStreamBuffer_;
 				}
-			} else if (alternatedRawStream && mode == ModeTypeHdrMerge) {
+			} else if (alternatedRawStream &&
+				   mode == PipelineMode::HdrMerge) {
 				if (evenRequest)
 					image0Buffer = info->rawStreamBuffer_;
 				else
@@ -719,27 +806,27 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 
 		auto &buffersMap = infoContext.buffers_;
 		if (hasImage0 && !image0Buffer)
-			image0Buffer = allocBuffer(BufferTypeImage0);
+			image0Buffer = allocBuffer(BufferType::Image0);
 		if (image0Buffer)
-			buffersMap.insert({ BufferTypeImage0, { image0Buffer, true } });
+			buffersMap.insert({ BufferType::Image0, { image0Buffer, true } });
 
 		if (hasImage1 && !image1Buffer)
-			image1Buffer = allocBuffer(BufferTypeImage1);
+			image1Buffer = allocBuffer(BufferType::Image1);
 		if (image1Buffer)
-			buffersMap.insert({ BufferTypeImage1, { image1Buffer, true } });
+			buffersMap.insert({ BufferType::Image1, { image1Buffer, true } });
 
 		bool hasEmbeddedData =
-			data_->availableBuffersMap_.count(BufferTypeEData);
+			data_->availableBuffersMap_.count(BufferType::EData);
 		if (hasEmbeddedData) {
-			FrameBuffer *edataBuffer = allocBuffer(BufferTypeEData);
-			buffersMap.insert({ BufferTypeEData, { edataBuffer, true } });
+			FrameBuffer *edataBuffer = allocBuffer(BufferType::EData);
+			buffersMap.insert({ BufferType::EData, { edataBuffer, true } });
 		}
 
 		/* Map the ISP params / stats internal buffers */
-		FrameBuffer *paramsBuffer = allocBuffer(BufferTypeParams);
-		buffersMap.insert({ BufferTypeParams, { paramsBuffer, true } });
-		FrameBuffer *statsBuffer = allocBuffer(BufferTypeStats);
-		buffersMap.insert({ BufferTypeStats, { statsBuffer, true } });
+		FrameBuffer *paramsBuffer = allocBuffer(BufferType::Params);
+		buffersMap.insert({ BufferType::Params, { paramsBuffer, true } });
+		FrameBuffer *statsBuffer = allocBuffer(BufferType::Stats);
+		buffersMap.insert({ BufferType::Stats, { statsBuffer, true } });
 
 		infoContext.paramDequeued_ = false;
 		infoContext.metadataProcessed_ = false;
@@ -756,27 +843,28 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 		FrameBuffer *irBuffer = nullptr;
 
 		switch (mode) {
-		case ModeTypeRgbIrDual:
-			ASSERT(context == ContextTypeRgb || context == ContextTypeIr);
-			if (context == ContextTypeRgb)
+		case PipelineMode::RgbIrDual:
+			ASSERT(context == CameraContext::Rgb ||
+			       context == CameraContext::Ir);
+			if (context == CameraContext::Rgb)
 				frameBuffer = info->frameStreamBuffer_;
 			else
 				irBuffer = info->irStreamBuffer_;
 			break;
-		case ModeTypeRgbIr:
-		case ModeTypeStandard:
-		case ModeTypeHdrMerge:
+		case PipelineMode::RgbIr:
+		case PipelineMode::Standard:
+		case PipelineMode::HdrMerge:
 		default:
-			ASSERT(context == ContextTypeRgb);
+			ASSERT(context == CameraContext::Rgb);
 			frameBuffer = info->frameStreamBuffer_;
 			irBuffer = info->irStreamBuffer_;
 			break;
 		}
 
 		if (frameBuffer)
-			buffersMap.insert({ BufferTypeFrame, { frameBuffer, true } });
+			buffersMap.insert({ BufferType::Frame, { frameBuffer, true } });
 		if (irBuffer)
-			buffersMap.insert({ BufferTypeIr, { irBuffer, true } });
+			buffersMap.insert({ BufferType::Ir, { irBuffer, true } });
 	}
 
 	frameInfo_[id] = std::move(info);
@@ -797,10 +885,10 @@ NxpNeoFrames::Info *NxpNeoFrames::createYuv(Request *request)
 	info->frameStreamBuffer_ = nullptr;
 	info->irStreamBuffer_ = nullptr;
 
-	info->contexts_.insert({ ContextTypeRgb, {} });
-	InfoContext &infoContext = info->contexts_.at(ContextTypeRgb);
+	info->contexts_.insert({ CameraContext::Rgb, {} });
+	InfoContext &infoContext = info->contexts_.at(CameraContext::Rgb);
 	auto &buffersMap = infoContext.buffers_;
-	buffersMap.insert({ BufferTypeImage0, { info->rawStreamBuffer_, true } });
+	buffersMap.insert({ BufferType::Image0, { info->rawStreamBuffer_, true } });
 
 	/* IPA-related operations are bypassed */
 	infoContext.paramDequeued_ = true;
@@ -1635,13 +1723,15 @@ int NxpNeoCameraData::exportFrameBuffers(Stream *stream,
 	unsigned int count = stream->configuration().bufferCount;
 
 	if (stream == &streamFrame_) {
-		NeoDevice *neoRgb = neoDevice(ContextTypeRgb);
+		NeoDevice *neoRgb = neoDevice(CameraContext::Rgb);
 		if (!neoRgb)
 			return -EINVAL;
 		return neoRgb->frame_->exportBuffers(count, buffers);
 	} else if (stream == &streamIr_) {
-		ContextType context =
-			mode_ != ModeTypeRgbIrDual ? ContextTypeRgb : ContextTypeIr;
+		CameraContext context =
+			mode_ != PipelineMode::RgbIrDual
+				? CameraContext::Rgb
+				: CameraContext::Ir;
 		NeoDevice *neo = neoDevice(context);
 		if (!neo)
 			return -EINVAL;
@@ -1832,14 +1922,14 @@ int NxpNeoCameraData::init()
 	if (isRawCamera()) {
 		if (feCamera_->hasStream(FEStream::Image1))
 			mode_ = sensorIsRgbIr()
-					? ModeTypeRgbIrDual
-					: ModeTypeHdrMerge;
+					? PipelineMode::RgbIrDual
+					: PipelineMode::HdrMerge;
 		else
 			mode_ = sensorIsRgbIr()
-					? ModeTypeRgbIr
-					: ModeTypeStandard;
+					? PipelineMode::RgbIr
+					: PipelineMode::Standard;
 	} else {
-		mode_ = ModeTypeStandard;
+		mode_ = PipelineMode::Standard;
 	}
 
 	/*
@@ -1878,9 +1968,9 @@ int NxpNeoCameraData::init()
 	if (!isRawCamera())
 		return 0;
 
-	contexts_ = mode_ == ModeTypeRgbIrDual
-			    ? std::vector<ContextType>{ ContextTypeRgb, ContextTypeIr }
-			    : std::vector<ContextType>{ ContextTypeRgb };
+	contexts_ = mode_ == PipelineMode::RgbIrDual
+			    ? std::vector<CameraContext>{ CameraContext::Rgb, CameraContext::Ir }
+			    : std::vector<CameraContext>{ CameraContext::Rgb };
 
 	const std::vector<NeoDevice *> &neoDevices = feCamera_->neoDevices();
 	if (contexts_.size() != neoDevices.size()) {
@@ -1950,7 +2040,7 @@ void NxpNeoCameraData::adjustTopLinesSize(Size *size) const
  *
  * \return The NeoDevice object for the context or nullptr if it does not exist
  */
-NeoDevice *NxpNeoCameraData::neoDevice(ContextType context) const
+NeoDevice *NxpNeoCameraData::neoDevice(CameraContext context) const
 {
 	auto it = neoDevices_.find(context);
 	if (it != neoDevices_.end())
@@ -2118,10 +2208,10 @@ int NxpNeoCameraData::allocateBuffersRaw()
 	/* Allocate and map stats and params buffers. */
 	for (auto &[context, neo] : neoDevices_) {
 		const std::map<BufferType, std::vector<std::unique_ptr<FrameBuffer>> *>
-		ispMetaPools = {
-			{ BufferTypeParams, &neo->paramsBuffers_ },
-			{ BufferTypeStats, &neo->statsBuffers_ },
-		};
+			ispMetaPools = {
+				{ BufferType::Params, &neo->paramsBuffers_ },
+				{ BufferType::Stats, &neo->statsBuffers_ },
+			};
 		ret |= neo->allocateBuffers(bufferCount);
 		for (const auto [bufferType, pool] : ispMetaPools)
 			registerPoolBuffers(pool, bufferType);
@@ -2264,14 +2354,14 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 	V4L2DeviceFormat &devFormatInput0 = feVDevFormats.at(FEStream::Image0);
 	V4L2DeviceFormat devFormatInput1None{};
 	V4L2DeviceFormat &devFormatInput1 =
-		mode_ == ModeTypeHdrMerge
+		mode_ == PipelineMode::HdrMerge
 			? feVDevFormats.at(FEStream::Image1)
 			: devFormatInput1None;
 
 	rawStreamOnly_ = ((config->size() == 1) &&
 			  ((*config)[0].stream() == &streamRaw_));
 
-	NeoDevice *neoRgb = neoDevice(ContextTypeRgb);
+	NeoDevice *neoRgb = neoDevice(CameraContext::Rgb);
 	if (!neoRgb)
 		return -EINVAL;
 	for (unsigned int i = 0; i < config->size(); ++i) {
@@ -2313,7 +2403,7 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 	ispFormatsMap[NeoDevice::VideoDevice::Input0] = &devFormatInput0;
 	if (devFormatInput1.fourcc.isValid())
 		ispFormatsMap[NeoDevice::VideoDevice::Input1] = &devFormatInput1;
-	if (mode_ != ModeTypeRgbIrDual) {
+	if (mode_ != PipelineMode::RgbIrDual) {
 		if (devFormatFrame.fourcc.isValid())
 			ispFormatsMap[NeoDevice::VideoDevice::Frame] = &devFormatFrame;
 		if (devFormatIr.fourcc.isValid())
@@ -2327,7 +2417,7 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 		ispFormatsMap.erase(NeoDevice::VideoDevice::Frame);
 		if (devFormatIr.fourcc.isValid())
 			ispFormatsMap[NeoDevice::VideoDevice::Ir] = &devFormatIr;
-		NeoDevice *neoIr = neoDevice(ContextTypeIr);
+		NeoDevice *neoIr = neoDevice(CameraContext::Ir);
 		if (!neoIr)
 			return -EINVAL;
 		ret |= neoIr->configure(pipeConfig, ispFormatsMap);
@@ -2341,9 +2431,9 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 	 *  - HDR Merge to capture long and short images if they share the same
 	 *    format
 	 */
-	if (mode_ == ModeTypeRgbIrDual)
+	if (mode_ == PipelineMode::RgbIrDual)
 		alternatedRawStream_ = true;
-	else if (mode_ == ModeTypeHdrMerge)
+	else if (mode_ == PipelineMode::HdrMerge)
 		alternatedRawStream_ =
 			(devFormatInput0.fourcc == devFormatInput1.fourcc &&
 			 devFormatInput0.size == devFormatInput1.size);
@@ -2486,10 +2576,10 @@ void NxpNeoCameraData::tryCompleteRequest(NxpNeoFrames::Info *info)
  * In case all front-end buffers associated to the request have been received,
  * the IPA can be invoked to retrieve ISP parameters.
  */
-void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, ContextType context)
+void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContext context)
 {
 	const std::vector<BufferType>
-		inputBufferTypes = { BufferTypeImage0, BufferTypeImage1, BufferTypeEData };
+		inputBufferTypes = { BufferType::Image0, BufferType::Image1, BufferType::EData };
 	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
 	if (infoContext.isBufferPending(inputBufferTypes))
 		return;
@@ -2497,22 +2587,22 @@ void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, ContextType 
 	std::map<uint32_t, uint32_t> bufferIds;
 
 	FrameBuffer *image0Buffer =
-		infoContext.buffer(BufferTypeImage0);
+		infoContext.buffer(BufferType::Image0);
 	if (image0Buffer)
 		bufferIds[ipa::nxpneo::IPABufferTypeImage0] = image0Buffer->cookie();
 
 	FrameBuffer *image1Buffer =
-		infoContext.buffer(BufferTypeImage1);
+		infoContext.buffer(BufferType::Image1);
 	if (image1Buffer)
 		bufferIds[ipa::nxpneo::IPABufferTypeImage1] = image1Buffer->cookie();
 
 	FrameBuffer *edataBuffer =
-		infoContext.buffer(BufferTypeEData);
+		infoContext.buffer(BufferType::EData);
 	if (edataBuffer)
 		bufferIds[ipa::nxpneo::IPABufferTypeEData] = edataBuffer->cookie();
 
 	FrameBuffer *paramsBuffer =
-		infoContext.buffer(BufferTypeParams);
+		infoContext.buffer(BufferType::Params);
 	ASSERT(paramsBuffer);
 	bufferIds[ipa::nxpneo::IPABufferTypeParams] = paramsBuffer->cookie();
 
@@ -2585,8 +2675,8 @@ void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
 	if (request->findBuffer(&streamRaw_) == buffer)
 		pipe()->completeBuffer(request, buffer);
 
-	if (mode_ == ModeTypeHdrMerge &&
-	    infoContext.isBufferPending({ BufferTypeImage0 }))
+	if (mode_ == PipelineMode::HdrMerge &&
+	    infoContext.isBufferPending({ BufferType::Image0 }))
 		LOG(NxpNeoPipe, Warning) << "Out of order input frame receipt";
 
 	feInputBufferReady(info, context);
@@ -2772,7 +2862,7 @@ void NxpNeoCameraData::ipaParamsComputed(unsigned int id,
 	if (!info)
 		return;
 
-	ContextType _context = static_cast<ContextType>(context);
+	CameraContext _context = static_cast<CameraContext>(context);
 	auto it = info->contexts_.find(_context);
 	if (it == info->contexts_.end()) {
 		LOG(NxpNeoPipe, Error) << "Invalid context from IPA";
@@ -2786,40 +2876,41 @@ void NxpNeoCameraData::ipaParamsComputed(unsigned int id,
 	if (!neo)
 		return;
 	FrameBuffer *frameBuffer =
-		infoContext.buffer(BufferTypeFrame);
+		infoContext.buffer(BufferType::Frame);
 	if (frameBuffer)
 		ret |= neo->frame_->queueBuffer(frameBuffer);
 	FrameBuffer *irBuffer =
-		infoContext.buffer(BufferTypeIr);
+		infoContext.buffer(BufferType::Ir);
 	if (irBuffer)
 		ret |= neo->ir_->queueBuffer(irBuffer);
 
 	/* Queue ISP params and stats buffers */
 	FrameBuffer *paramsBuffer =
-		infoContext.buffer(BufferTypeParams);
+		infoContext.buffer(BufferType::Params);
 	if (paramsBuffer) {
 		paramsBuffer->_d()->metadata().planes()[0].bytesused = bytesused;
 		ret |= neo->params_->queueBuffer(paramsBuffer);
 	}
 	FrameBuffer *statsBuffer =
-		infoContext.buffer(BufferTypeStats);
+		infoContext.buffer(BufferType::Stats);
 	if (statsBuffer)
 		ret |= neo->stats_->queueBuffer(statsBuffer);
 
 	/* Queue ISP input buffers */
 	FrameBuffer *image0Buffer =
-		infoContext.buffer(BufferTypeImage0);
+		infoContext.buffer(BufferType::Image0);
 	FrameBuffer *image1Buffer =
-		infoContext.buffer(BufferTypeImage1);
+		infoContext.buffer(BufferType::Image1);
 	if (image0Buffer)
 		ret |= neo->input0_->queueBuffer(image0Buffer);
 	if (image1Buffer) {
-		if (mode_ == ModeTypeHdrMerge)
+		if (mode_ == PipelineMode::HdrMerge)
 			ret |= neo->input1_->queueBuffer(image1Buffer);
-		else if (mode_ == ModeTypeRgbIrDual)
+		else if (mode_ == PipelineMode::RgbIrDual)
 			ret |= neo->input0_->queueBuffer(image1Buffer);
 		else
-			LOG(NxpNeoPipe, Error) << "Unexpected image1 in mode " << mode_;
+			LOG(NxpNeoPipe, Error)
+				<< "Unexpected image1 in mode " << static_cast<int>(mode_);
 	}
 
 	if (ret)
@@ -2837,7 +2928,7 @@ void NxpNeoCameraData::ipaMetadataReady(unsigned int id,
 	Request *request = info->request_;
 	request->_d()->metadata().merge(metadata);
 
-	auto it = info->contexts_.find(static_cast<ContextType>(context));
+	auto it = info->contexts_.find(static_cast<CameraContext>(context));
 	if (it == info->contexts_.end()) {
 		LOG(NxpNeoPipe, Error) << "Invalid context " << context;
 		return;
