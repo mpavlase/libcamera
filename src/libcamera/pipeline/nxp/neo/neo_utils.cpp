@@ -268,7 +268,7 @@ int PipelineConfig::parseCameras(const YamlObject &cameras)
 			/* Size parsing (mandatory). */
 			const YamlObject &sizeObj = instanceObj["size"];
 			Size &size = instance.size;
-			size = sizeObj.get<Size>().value_or({});
+			size = sizeObj.get<Size>().value_or(Size{});
 			if (size.isNull()) {
 				LOG(NxpNeoPipe, Error)
 					<< "Invalid size " << size;
