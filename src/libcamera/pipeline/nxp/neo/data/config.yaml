@@ -100,6 +100,8 @@ cameras:
     controls-delay: 3
   - model: ox05b1s
     rgbir-cfa: true
+# Uncomment the line below to enable RGBIr context switch
+#    streams: [image1]
   - model: vivid
     vivid-instances:
         - pixel-format: SBGGR12
