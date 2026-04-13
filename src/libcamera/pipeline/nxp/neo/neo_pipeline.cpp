@@ -395,9 +395,11 @@ private:
 	void neoParamsBufferReady(FrameBuffer *buffer);
 	void neoStatsBufferReady(FrameBuffer *buffer);
 
-	void ipaParamsComputed(unsigned int id, ipa::nxpneo::IPAContextType context,
+	void ipaParamsComputed(unsigned int id,
+			       ipa::nxpneo::IPACameraContext context,
 			       unsigned int bytesused);
-	void ipaMetadataReady(unsigned int id, ipa::nxpneo::IPAContextType context,
+	void ipaMetadataReady(unsigned int id,
+			      ipa::nxpneo::IPACameraContext context,
 			      const ControlList &metadata);
 	void ipaSetSensorControls(unsigned int id,
 				  const ControlList &sensorControls);
@@ -2419,7 +2421,7 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 		return ret;
 	adjustTopLinesSize(&sensorInfo.outputSize);
 
-	std::map<unsigned int, IPAStream> streamConfig;
+	std::map<ipa::nxpneo::IPAStreamType, IPAStream> streamConfig;
 
 	ColorSpace colorSpace = ColorSpace::Raw;
 	for (unsigned int i = 0; i < config->size(); ++i) {
@@ -2427,7 +2429,7 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 		Stream *stream = cfg.stream();
 
 		if (stream == &streamFrame_) {
-			streamConfig[ipa::nxpneo::IPAStreamTypeFrame] =
+			streamConfig[ipa::nxpneo::IPAStreamType::Frame] =
 				IPAStream{ cfg.pixelFormat, cfg.size };
 			/*
 			 * Take color space from the frame if it exists,
@@ -2435,7 +2437,7 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 			 */
 			colorSpace = cfg.colorSpace.value_or(ColorSpace::Raw);
 		} else if (stream == &streamIr_) {
-			streamConfig[ipa::nxpneo::IPAStreamTypeIr] =
+			streamConfig[ipa::nxpneo::IPAStreamType::Ir] =
 				IPAStream{ cfg.pixelFormat, cfg.size };
 		}
 	}
@@ -2455,7 +2457,7 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 		static_cast<ipa::nxpneo::IPAYcbcrEncoding>(colorSpace.ycbcrEncoding),
 		static_cast<ipa::nxpneo::IPARange>(colorSpace.range));
 
-	configInfo.mode = static_cast<ipa::nxpneo::IPAModeType>(mode_);
+	configInfo.mode = static_cast<ipa::nxpneo::IPAPipelineMode>(mode_);
 
 	const PixelFormatInfo &pixelformatInfo =
 		PixelFormatInfo::info(devFormatInput1.fourcc);
@@ -2552,22 +2554,22 @@ void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContex
 	if (infoContext.isBufferPending(inputBufferTypes))
 		return;
 
-	std::map<uint32_t, uint32_t> bufferIds;
+	std::map<ipa::nxpneo::IPABufferType, uint32_t> bufferIds;
 
 	FrameBuffer *image0Buffer =
 		infoContext.buffer(BufferType::Image0);
 	if (image0Buffer)
-		bufferIds[ipa::nxpneo::IPABufferTypeImage0] = image0Buffer->cookie();
+		bufferIds[ipa::nxpneo::IPABufferType::Image0] = image0Buffer->cookie();
 
 	FrameBuffer *image1Buffer =
 		infoContext.buffer(BufferType::Image1);
 	if (image1Buffer)
-		bufferIds[ipa::nxpneo::IPABufferTypeImage1] = image1Buffer->cookie();
+		bufferIds[ipa::nxpneo::IPABufferType::Image1] = image1Buffer->cookie();
 
 	FrameBuffer *edataBuffer =
 		infoContext.buffer(BufferType::EData);
 	if (edataBuffer)
-		bufferIds[ipa::nxpneo::IPABufferTypeEData] = edataBuffer->cookie();
+		bufferIds[ipa::nxpneo::IPABufferType::EData] = edataBuffer->cookie();
 
 	FrameBuffer *paramsBuffer =
 		infoContext.buffer(BufferType::Params);
@@ -2575,10 +2577,10 @@ void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContex
 		LOG(NxpNeoPipe, Error) << "Params buffer not available";
 		return;
 	}
-	bufferIds[ipa::nxpneo::IPABufferTypeParams] = paramsBuffer->cookie();
+	bufferIds[ipa::nxpneo::IPABufferType::Params] = paramsBuffer->cookie();
 
 	ipa_->computeParams(info->id_,
-			    static_cast<ipa::nxpneo::IPAContextType>(context),
+			    static_cast<ipa::nxpneo::IPACameraContext>(context),
 			    bufferIds);
 }
 
@@ -2812,8 +2814,8 @@ void NxpNeoCameraData::neoStatsBufferReady(FrameBuffer *buffer)
 		return;
 	}
 
-	std::map<uint32_t, uint32_t> bufferIds = {
-		{ ipa::nxpneo::IPABufferTypeStats, buffer->cookie() },
+	std::map<ipa::nxpneo::IPABufferType, uint32_t> bufferIds = {
+		{ ipa::nxpneo::IPABufferType::Stats, buffer->cookie() },
 	};
 
 	unsigned int sequence = info->id_;
@@ -2828,7 +2830,7 @@ void NxpNeoCameraData::neoStatsBufferReady(FrameBuffer *buffer)
 	}
 
 	ipa_->processStats(sequence,
-			   static_cast<ipa::nxpneo::IPAContextType>(context),
+			   static_cast<ipa::nxpneo::IPACameraContext>(context),
 			   bufferIds,
 			   sensorControls);
 
@@ -2836,7 +2838,7 @@ void NxpNeoCameraData::neoStatsBufferReady(FrameBuffer *buffer)
 }
 
 void NxpNeoCameraData::ipaParamsComputed(unsigned int id,
-					 ipa::nxpneo::IPAContextType context,
+					 ipa::nxpneo::IPACameraContext context,
 					 unsigned int bytesused)
 {
 	NxpNeoFrames::Info *info = frameInfos_.find(id);
@@ -2899,7 +2901,7 @@ void NxpNeoCameraData::ipaParamsComputed(unsigned int id,
 }
 
 void NxpNeoCameraData::ipaMetadataReady(unsigned int id,
-					ipa::nxpneo::IPAContextType context,
+					ipa::nxpneo::IPACameraContext context,
 					const ControlList &metadata)
 {
 	NxpNeoFrames::Info *info = frameInfos_.find(id);
@@ -2911,7 +2913,7 @@ void NxpNeoCameraData::ipaMetadataReady(unsigned int id,
 
 	auto it = info->contexts_.find(static_cast<CameraContext>(context));
 	if (it == info->contexts_.end()) {
-		LOG(NxpNeoPipe, Error) << "Invalid context " << context;
+		LOG(NxpNeoPipe, Error) << "Invalid context from IPA";
 		return;
 	}
 	NxpNeoFrames::InfoContext &infoContext = it->second;
