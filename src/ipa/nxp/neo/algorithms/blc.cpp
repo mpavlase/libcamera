@@ -249,8 +249,8 @@ int BlackLevelCorrection::configure(IPAContext &context,
 	 *     - 20-bit unconditionally
 	 */
 	ObwbArray<unsigned int> gainLeftShift;
-	IPAModeType &mode = context.configuration.pipelineMode;
-	if (mode != IPAModeTypeHdrMerge) {
+	IPAPipelineMode &mode = context.configuration.pipelineMode;
+	if (mode != IPAPipelineMode::HdrMerge) {
 		gainLeftShift[0] = 20 - bpps[0];
 		gainLeftShift[1] = 16 - bpps[1];
 	} else {
@@ -327,7 +327,7 @@ int BlackLevelCorrection::configure(IPAContext &context,
 			return NEO_OBWB_OBPP_20BPP;
 	};
 
-	if (mode != IPAModeTypeHdrMerge) {
+	if (mode != IPAPipelineMode::HdrMerge) {
 		blcConfig.obwbObpp[0] = obpp(20);
 		blcConfig.obwbObpp[1] = obpp(16);
 	} else {

@@ -104,10 +104,10 @@ struct IPASessionConfiguration {
 	} drc;
 
 	std::map<IPAStreamType, IPAStream> streams;
-	std::vector<IPAContextType> activeContexts;
+	std::vector<IPACameraContext> activeContexts;
 
 	IPAColorSpace colorSpace;
-	IPAModeType pipelineMode;
+	IPAPipelineMode pipelineMode;
 };
 
 struct IPAActiveState {
@@ -131,7 +131,7 @@ struct IPAActiveState {
 		controls::AeExposureModeEnum exposureMode;
 		bool autoEnabled;
 	};
-	std::map<IPAContextType, agc> agcs;
+	std::map<IPACameraContext, agc> agcs;
 
 	struct {
 		struct {
@@ -180,7 +180,7 @@ struct IPAFrameContext : public FrameContext {
 		double gain;
 		bool autoEnabled;
 	};
-	std::map<IPAContextType, agc> agcs;
+	std::map<IPACameraContext, agc> agcs;
 
 	struct {
 		RGB<double> gains;
@@ -201,7 +201,7 @@ struct IPAFrameContext : public FrameContext {
 			uint32_t exposure;
 			double gain;
 		};
-		std::map<IPAContextType, agc> agcs;
+		std::map<IPACameraContext, agc> agcs;
 		RGB<double> wbGains;
 		ControlList mdControls;
 		bool metaDataValid;
@@ -221,8 +221,8 @@ struct IPAFrameContext : public FrameContext {
 		bool update;
 	} goc;
 
-	IPAContextType contextType;
-	std::map<IPAContextType, bool> processed;
+	IPACameraContext cameraContext;
+	std::map<IPACameraContext, bool> processed;
 };
 
 struct IPAContext {

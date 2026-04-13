@@ -175,8 +175,8 @@ void PipeConf::prepare(IPAContext &context, const uint32_t frame,
 	auto config = params->block<BlockParamsType::PipeConf>();
 	config.setUpdate(true);
 
-	IPAModeType &mode = context.configuration.pipelineMode;
-	uint8_t lpAlignAuto = mode != IPAModeTypeHdrMerge ? 1 : 0;
+	IPAPipelineMode &mode = context.configuration.pipelineMode;
+	uint8_t lpAlignAuto = mode != IPAPipelineMode::HdrMerge ? 1 : 0;
 	uint8_t lpAlign0 = lpAlign0_.value_or(lpAlignAuto);
 	uint8_t lpAlign1 = lpAlign1_.value_or(lpAlignAuto);
 

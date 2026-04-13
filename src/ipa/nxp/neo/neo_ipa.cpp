@@ -66,16 +66,16 @@ public:
 	void stop() override;
 
 	int configure(const IPAConfigInfo &ipaConfig,
-		      const std::map<uint32_t, IPAStream> &streamConfig,
+		      const std::map<IPAStreamType, IPAStream> &streamConfig,
 		      ControlInfoMap *ipaControls) override;
 	void mapBuffers(const std::vector<IPABuffer> &buffers) override;
 	void unmapBuffers(const std::vector<unsigned int> &ids) override;
 
 	void queueRequest(const uint32_t frame, const ControlList &controls) override;
-	void computeParams(const uint32_t frame, const IPAContextType context,
-			   const std::map<uint32_t, uint32_t> &bufferIds) override;
-	void processStats(const uint32_t frame, const IPAContextType context,
-			  const std::map<uint32_t, uint32_t> &bufferIds,
+	void computeParams(const uint32_t frame, const IPACameraContext context,
+			   const std::map<IPABufferType, uint32_t> &bufferIds) override;
+	void processStats(const uint32_t frame, const IPACameraContext context,
+			  const std::map<IPABufferType, uint32_t> &bufferIds,
 			  const ControlList &sensorControls) override;
 
 protected:
@@ -87,7 +87,8 @@ private:
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
 			    const ControlInfoMap &sensorControls,
 			    ControlInfoMap *ipaControls);
-	void updateFrameContextSensorMeta(const uint32_t frame, const IPAContextType context);
+	void updateFrameContextSensorMeta(const uint32_t frame,
+					  const IPACameraContext context);
 	void setInitialControls();
 	void setControls(const uint32_t frame);
 	std::string controlListToString(const ControlList *ctrls) const;
@@ -95,7 +96,8 @@ private:
 				    const ControlList *ctrlsApplied,
 				    const ControlList *ctrlsToApply) const;
 
-	static const std::map<const IPAModeType, SensorStreamModes> kSensorStreamModeMap;
+	static const std::map<const IPAPipelineMode, SensorStreamModes>
+		kSensorStreamModeMap;
 	std::map<unsigned int, FrameBuffer> buffers_;
 	std::map<unsigned int, MappedFrameBuffer> mappedBuffers_;
 
@@ -109,11 +111,12 @@ private:
 	struct IPAContext context_;
 };
 
-const std::map<const IPAModeType, SensorStreamModes> IPANxpNeo::kSensorStreamModeMap = {
-	{ IPAModeTypeStandard, SensorStreamStandard },
-	{ IPAModeTypeHdrMerge, SensorStreamHdr },
-	{ IPAModeTypeRgbIr, SensorStreamRgbIr },
-	{ IPAModeTypeRgbIrDual, SensorStreamDualContext },
+const std::map<const IPAPipelineMode, SensorStreamModes>
+	IPANxpNeo::kSensorStreamModeMap = {
+		{ IPAPipelineMode::Standard, SensorStreamStandard },
+		{ IPAPipelineMode::HdrMerge, SensorStreamHdr },
+		{ IPAPipelineMode::RgbIr, SensorStreamRgbIr },
+		{ IPAPipelineMode::RgbIrDual, SensorStreamDualContext },
 };
 
 IPANxpNeo::IPANxpNeo()
@@ -237,7 +240,7 @@ void IPANxpNeo::stop()
 }
 
 int IPANxpNeo::configure(const IPAConfigInfo &ipaConfig,
-			 const std::map<uint32_t, IPAStream> &streamConfig,
+			 const std::map<IPAStreamType, IPAStream> &streamConfig,
 			 ControlInfoMap *ipaControls)
 {
 	/* Clear the IPA context before the streaming session. */
@@ -249,10 +252,10 @@ int IPANxpNeo::configure(const IPAConfigInfo &ipaConfig,
 
 	/* Initialize active RGB/Ir contexts. */
 	context_.configuration.activeContexts =
-		context_.configuration.pipelineMode == IPAModeTypeRgbIrDual
-			? std::vector<IPAContextType>{ IPAContextTypeRgb,
-						       IPAContextTypeIr }
-			: std::vector<IPAContextType>{ IPAContextTypeRgb };
+		context_.configuration.pipelineMode == IPAPipelineMode::RgbIrDual
+			? std::vector<IPACameraContext>{ IPACameraContext::Rgb,
+							 IPACameraContext::Ir }
+			: std::vector<IPACameraContext>{ IPACameraContext::Rgb };
 
 	const IPACameraSensorInfo &info = ipaConfig.sensorInfo;
 	sensorControlList_ = ipaConfig.sensorControlList;
@@ -325,11 +328,11 @@ void IPANxpNeo::queueRequest(const uint32_t frame, const ControlList &controls)
 		algo->queueRequest(context_, frame, frameContext, controls);
 }
 
-void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context,
-			      const std::map<uint32_t, uint32_t> &bufferIds)
+void IPANxpNeo::computeParams(const uint32_t frame, const IPACameraContext context,
+			      const std::map<IPABufferType, uint32_t> &bufferIds)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
-	frameContext.contextType = context;
+	frameContext.cameraContext = context;
 
 	/*
 	 * Metadata parsing is done either from image pixel data top lines, or
@@ -356,7 +359,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 	 * Look for metadata availability, either from the camera embedded data
 	 * stream or from the pixel data top lines.
 	 */
-	auto eDataIt = bufferIds.find(IPABufferTypeEData);
+	auto eDataIt = bufferIds.find(IPABufferType::EData);
 	unsigned int eDataBufferId =
 		eDataIt != bufferIds.end() ? eDataIt->second : 0;
 	if (eDataBufferId && mappedBuffers_.count(eDataBufferId)) {
@@ -365,7 +368,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 		metaData = plane.data();
 		metaSize = plane.size_bytes();
 	} else {
-		auto input0It = bufferIds.find(IPABufferTypeImage0);
+		auto input0It = bufferIds.find(IPABufferType::Image0);
 		unsigned int rawBufferId =
 			input0It != bufferIds.end() ? input0It->second : 0;
 		if (rawBufferId && mappedBuffers_.count(rawBufferId)) {
@@ -391,8 +394,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 	}
 
 	/* Prepare parameters buffer. */
-	auto paramsIter = bufferIds.find(IPABufferTypeParams);
-	/* \todo Return error if params buffer is not available instead of ASSERT */
+	auto paramsIter = bufferIds.find(IPABufferType::Params);
 	unsigned int paramsBufferId =
 		paramsIter != bufferIds.end() ? paramsIter->second : 0;
 	if (!mappedBuffers_.count(paramsBufferId)) {
@@ -407,7 +409,7 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (context == IPAContextTypeIr && !(algo->irOps() & IrOpPrepare))
+		if (context == IPACameraContext::Ir && !(algo->irOps() & IrOpPrepare))
 			continue;
 		algo->prepare(context_, frame, frameContext, &params);
 	}
@@ -423,14 +425,14 @@ void IPANxpNeo::computeParams(const uint32_t frame, const IPAContextType context
 	}
 }
 
-void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
-			     const std::map<uint32_t, uint32_t> &bufferIds,
+void IPANxpNeo::processStats(const uint32_t frame, const IPACameraContext context,
+			     const std::map<IPABufferType, uint32_t> &bufferIds,
 			     const ControlList &sensorControls)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
-	frameContext.contextType = context;
+	frameContext.cameraContext = context;
 
-	auto statsIter = bufferIds.find(IPABufferTypeStats);
+	auto statsIter = bufferIds.find(IPABufferType::Stats);
 	unsigned int statsBufferId =
 		statsIter != bufferIds.end() ? statsIter->second : 0;
 	if (!mappedBuffers_.count(statsBufferId)) {
@@ -456,7 +458,7 @@ void IPANxpNeo::processStats(const uint32_t frame, const IPAContextType context,
 	ControlList metadata(controls::controls);
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (context == IPAContextTypeIr && !(algo->irOps() & IrOpProcess))
+		if (context == IPACameraContext::Ir && !(algo->irOps() & IrOpProcess))
 			continue;
 		algo->process(context_, frame, frameContext, &stats, metadata);
 	}
@@ -484,9 +486,7 @@ void IPANxpNeo::updateSensorConfig(const IPACameraSensorInfo &sensorInfo,
 	} else {
 		cameraMode.streamMode = SensorStreamStandard;
 		LOG(NxpNeoIPA, Warning)
-			<< "No sensor stream mode found for pipeline mode: "
-			<< context_.configuration.pipelineMode
-			<< " - Default mode is used: " << cameraMode.streamMode;
+			<< "No sensor stream mode supported: fallback to standard mode.";
 	}
 	context_.camHelper->setCameraMode(cameraMode);
 
@@ -586,7 +586,8 @@ void IPANxpNeo::updateControls(const IPACameraSensorInfo &sensorInfo,
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
 }
 
-void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPAContextType context)
+void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame,
+					     const IPACameraContext context)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	ControlList &mdControls = frameContext.sensor.mdControls;
@@ -597,11 +598,11 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::Exposure.id());
 		Span<const float> exposuresSpan =
 			exposureValue.get<Span<const float>>();
-		if (context > exposuresSpan.size()) {
+		if (static_cast<std::size_t>(context) > exposuresSpan.size()) {
 			LOG(NxpNeoIPA, Error) << "Exposure context out of range";
 			return;
 		}
-		exposure = exposuresSpan[context] * 1.0s;
+		exposure = exposuresSpan[static_cast<int>(context)] * 1.0s;
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No exposure metadata";
 		exposure = context_.configuration.sensor.minExposureTime;
@@ -618,11 +619,11 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::AnalogueGain.id());
 		Span<const float> aGainsSpan =
 			aGainValue.get<Span<const float>>();
-		if (context > aGainsSpan.size()) {
+		if (static_cast<std::size_t>(context) > aGainsSpan.size()) {
 			LOG(NxpNeoIPA, Error) << "Analog gain context out of range";
 			return;
 		}
-		aGain = aGainsSpan[context];
+		aGain = aGainsSpan[static_cast<int>(context)];
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No analog gain metadata";
 	}
@@ -633,11 +634,11 @@ void IPANxpNeo::updateFrameContextSensorMeta(const uint32_t frame, const IPACont
 			mdControls.get(md::DigitalGain.id());
 		Span<const float> dGainsSpan =
 			dGainValue.get<Span<const float>>();
-		if (context > dGainsSpan.size()) {
+		if (static_cast<std::size_t>(context) > dGainsSpan.size()) {
 			LOG(NxpNeoIPA, Error) << "Digital gain context out of range";
 			return;
 		}
-		dGain = dGainsSpan[context];
+		dGain = dGainsSpan[static_cast<int>(context)];
 	} else {
 		LOG(NxpNeoIPA, Warning) << "No digital gain metadata";
 	}

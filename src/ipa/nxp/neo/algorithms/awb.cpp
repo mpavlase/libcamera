@@ -167,9 +167,9 @@ int Awb::configure(IPAContext &context,
 	 * configured in the calibration file, default to OBWB2 unless we are
 	 * in HDR merge mode.
 	 */
-	IPAModeType &mode = context.configuration.pipelineMode;
+	IPAPipelineMode &mode = context.configuration.pipelineMode;
 	if (!obwbUserConfig_) {
-		if (mode != IPAModeTypeHdrMerge)
+		if (mode != IPAPipelineMode::HdrMerge)
 			obwbs_ = kObwbMap.at("obwb2");
 		else
 			obwbs_ = kObwbMap.at("obwb0/1");
@@ -208,7 +208,7 @@ int Awb::configure(IPAContext &context,
 	 *     - 20-bit unconditionally
 	 */
 	ObwbArray<uint16_t> obwbBitDepth;
-	if (mode != IPAModeTypeHdrMerge) {
+	if (mode != IPAPipelineMode::HdrMerge) {
 		obwbBitDepth[0] = 20;
 		obwbBitDepth[1] = 16;
 		awbConfig.obwbObpp[0] = obpp(obwbBitDepth[0]);

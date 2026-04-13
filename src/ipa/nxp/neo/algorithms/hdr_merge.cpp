@@ -391,8 +391,8 @@ int HdrMerge::parseAutoParams(const YamlObject &tuningData)
 int HdrMerge::configure(IPAContext &context,
 			[[maybe_unused]] const IPACameraSensorInfo &configInfo)
 {
-	IPAModeType &mode = context.configuration.pipelineMode;
-	enabled_ = mode == IPAModeTypeHdrMerge;
+	IPAPipelineMode &mode = context.configuration.pipelineMode;
+	enabled_ = mode == IPAPipelineMode::HdrMerge;
 
 	context.configuration.hdr.ratioLong2Short = ratioL2S_;
 

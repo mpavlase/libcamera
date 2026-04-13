@@ -281,31 +281,31 @@ int HdrDecomp::configure(IPAContext &context,
 	 * gain is applied in HDR Decomp block to rescale the input to 12-bit
 	 * bit depth in order to meet the OBWB0/1 constraints.
 	 */
-	IPAModeType &mode = context.configuration.pipelineMode;
+	IPAPipelineMode &mode = context.configuration.pipelineMode;
 	std::array<uint32_t, 2> &bpps = context.configuration.sensor.bpps;
 
 	/* Special cases: update ratio[4] to amend the unitary gain (u7.5). */
 	if (!input0_.userConfig && bpps[0] == 12) {
-		if (mode != IPAModeTypeHdrMerge)
+		if (mode != IPAPipelineMode::HdrMerge)
 			input0_.ratios[4] = (1 << 5) * 16;
 		else
 			input0_.ratios[4] = (1 << 5) / 16;
 	}
 
 	if (!input1_.userConfig && bpps[1] == 12) {
-		if (mode == IPAModeTypeHdrMerge)
+		if (mode == IPAPipelineMode::HdrMerge)
 			input1_.ratios[4] = (1 << 5) / 16;
 	}
 
 	if (!input0_.userConfig && bpps[0] == 10) {
-		if (mode != IPAModeTypeHdrMerge)
+		if (mode != IPAPipelineMode::HdrMerge)
 			input0_.ratios[4] = (1 << 5);
 		else
 			input0_.ratios[4] = (1 << 5) * 4;
 	}
 
 	if (!input1_.userConfig && bpps[1] == 10) {
-		if (mode != IPAModeTypeHdrMerge)
+		if (mode != IPAPipelineMode::HdrMerge)
 			input1_.ratios[4] = (1 << 5);
 		else
 			input1_.ratios[4] = (1 << 5) * 4;

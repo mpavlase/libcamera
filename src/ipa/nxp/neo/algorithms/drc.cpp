@@ -633,10 +633,11 @@ int Drc::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData
  */
 int Drc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 {
-	IPAModeType &pipelineMode = context.configuration.pipelineMode;
+	IPAPipelineMode &pipelineMode = context.configuration.pipelineMode;
 
 	context.configuration.drc.gblMode = gblInitMode_;
-	if ((restrictMode_ == "hdr-merge") && (pipelineMode != IPAModeTypeHdrMerge)) {
+	if (restrictMode_ == "hdr-merge" &&
+	    pipelineMode != IPAPipelineMode::HdrMerge) {
 		/*
 		 * Disable the dynamic DRC (set to Copy mode) if the restrict mode
 		 * is set to "hdr-merge"
