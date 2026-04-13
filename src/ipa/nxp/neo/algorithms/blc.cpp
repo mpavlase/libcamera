@@ -115,8 +115,8 @@ LOG_DEFINE_CATEGORY(NxpNeoAlgoBlc)
 const std::string BlackLevelCorrection::kDefaultObwb{ "obwb0/1" };
 
 const std::map<const std::string, std::vector<uint8_t>> BlackLevelCorrection::kObwbMap = {
-	{ "obwb0/1", { 0, 1 } },
-	{ "obwb2", { 2 } },
+	{ "obwb0/1", { NEO_OBWB_LINE_PATH0, NEO_OBWB_LINE_PATH1 } },
+	{ "obwb2", { NEO_OBWB_MERGE_PATH } },
 };
 
 BlackLevelCorrection::BlackLevelCorrection()

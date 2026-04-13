@@ -10,12 +10,15 @@
 
 #pragma once
 
+#include <array>
+
 namespace libcamera {
 
 namespace ipa::nxpneo {
 
 /**
- * enum neoisp_obwb_instances -  instance of the Optical Black Correction and White Balance block.
+ * enum neoisp_obwb_instances - instance of the Optical Black Correction and
+ * 				White Balance block.
  *
  * @NEO_OBWB_LINE_PATH0:	OB_WB of the line path0
  * @NEO_OBWB_LINE_PATH1:	OB_WB of the line path1
@@ -26,11 +29,12 @@ enum neoisp_obwb_instances {
 	NEO_OBWB_LINE_PATH0 = 0,
 	NEO_OBWB_LINE_PATH1,
 	NEO_OBWB_MERGE_PATH,
-	/*NEO_OBWB_CNT,*/ /* /todo: should replace the one defined in UAPI */
+	/* NEO_OBWB_CNT, \todo: should replace the one defined in UAPI */
 };
 
 /**
- * enum neoisp_obwb_obpp -  size of pixel components outputted from the OB_WB unit.
+ * enum neoisp_obwb_obpp - size of pixel components outputted from the
+ * 			   OB_WB unit.
  *
  * @NEO_OBWB_OBPP_12BPP:	12 bpp
  * @NEO_OBWB_OBPP_14BPP:	14 bpp
@@ -52,14 +56,15 @@ enum neoisp_obwb_obpp {
  */
 
 /**
- * enum neo_isp_ctemp_ibpp -  size of pixel components coming into the COLORTEMP unit.
+ * enum neoisp_ctemp_ibpp - size of pixel components coming into the
+ * 			    COLORTEMP unit.
  *
  * @NEO_CTEMP_IBPP_12BPP:	12 bpp
  * @NEO_CTEMP_IBPP_14BPP:	14 bpp
  * @NEO_CTEMP_IBPP_16BPP:	16 bpp
  * @NEO_CTEMP_IBPP_20BPP:	20 bpp
  */
-enum neo_isp_ctemp_ibpp {
+enum neoisp_ctemp_ibpp {
 	NEO_CTEMP_IBPP_12BPP = 0,
 	NEO_CTEMP_IBPP_14BPP = 1,
 	NEO_CTEMP_IBPP_16BPP = 2,
@@ -70,7 +75,8 @@ enum neo_isp_ctemp_ibpp {
 #define NEO_CTEMP_BLOCK_NB_Y 8
 
 /**
- * enum neoisp_hist_ctrl_channel - RGGB channel to be included in the histogram.
+ * enum neoisp_hist_ctrl_channel - RGGB channel to be included in the
+ * 				   histogram.
  *
  * @NEO_HIST_CHANNEL_R:  Red (R) pixels of a RGGB Bayer pattern
  * @NEO_HIST_CHANNEL_GR: Green (Gr) pixels of a RGGB Bayer pattern
@@ -97,6 +103,22 @@ enum neoisp_hist_rgbir_channel {
 	NEO_HIST_CHANNEL2 = 0x2,
 	NEO_HIST_CHANNEL3 = 0x4,
 	NEO_HIST_CHANNEL4 = 0x8,
+};
+
+/**
+ * enum neoisp_hdr_merge_bpp - size of pixel components definition for
+ *			       the HDR merge unit.
+ *
+ * @NEO_HDR_MERGE_BPP_12BPP:	12 bpp
+ * @NEO_HDR_MERGE_BPP_14BPP:	14 bpp
+ * @NEO_HDR_MERGE_BPP_16BPP:	16 bpp
+ * @NEO_HDR_MERGE_BPP_20BPP:	20 bpp
+ */
+enum neoisp_hdr_merge_bpp {
+	NEO_HDR_MERGE_BPP_12BPP = 0,
+	NEO_HDR_MERGE_BPP_14BPP = 1,
+	NEO_HDR_MERGE_BPP_16BPP = 2,
+	NEO_HDR_MERGE_BPP_20BPP = 3,
 };
 
 /**
@@ -147,22 +169,6 @@ using ObwbArray = std::array<T, kObwbInstancesCount>;
 #define NEO_AF_BLOCK_NB_X 3
 #define NEO_AF_BLOCK_NB_Y 3
 
-/**
- * enum neo_isp_hdr_merge_bpp -  size of pixel components definition for
- *                               the HDR merge unit.
- *
- * @NEO_HDR_MERGE_BPP_12BPP:	12 bpp
- * @NEO_HDR_MERGE_BPP_14BPP:	14 bpp
- * @NEO_HDR_MERGE_BPP_16BPP:	16 bpp
- * @NEO_HDR_MERGE_BPP_20BPP:	20 bpp
- */
-enum neo_isp_hdr_merge_bpp {
-	NEO_HDR_MERGE_BPP_12BPP = 0,
-	NEO_HDR_MERGE_BPP_14BPP = 1,
-	NEO_HDR_MERGE_BPP_16BPP = 2,
-	NEO_HDR_MERGE_BPP_20BPP = 3,
-};
-
 } /* namespace ipa::nxpneo */
 
-} /* namespace libcamera*/
+} /* namespace libcamera */
