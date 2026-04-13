@@ -191,6 +191,10 @@ CameraHelper::CameraHelper()
  */
 void CameraHelper::setCameraMode(const CameraMode &mode)
 {
+	if (!mode.pixelRate)
+		LOG(NxpCameraHelper, Error)
+			<< "Invalid pixel rate " << mode.pixelRate;
+
 	mode_ = mode;
 	LOG(NxpCameraHelper, Debug)
 		<< " pixel rate: " << mode_.pixelRate
@@ -212,10 +216,10 @@ void CameraHelper::setCameraMode(const CameraMode &mode)
  *
  * \param[in] sensorCtrls The sensor control list
  */
-void CameraHelper::sensorControlList(const ControlList *sensorCtrls)
+void CameraHelper::sensorControlList(
+	[[maybe_unused]] const ControlList *sensorCtrls)
 {
 	/* Nothing to do */
-	(void)sensorCtrls;
 }
 
 /**
@@ -337,16 +341,15 @@ void CameraHelper::controlInfoMapGetAnalogGainRange(
  *   configuration.
  * In case white balance gains are controlled in the ISP, this method does
  * nothing.
-.*
+ *
  * \param[inout] ctrls The control list to be updated
  * \param[in] gains The gains for the color channels in this order: R, Gr, Gb, B
  */
 void CameraHelper::controlListSetAWB(
-	ControlList *ctrls, Span<const double, 4> gains) const
+	[[maybe_unused]] ControlList *ctrls,
+	[[maybe_unused]] Span<const double, 4> gains) const
 {
 	/* Nothing to do, not supported by default */
-	(void)gains;
-	(void)ctrls;
 }
 
 /**
@@ -374,7 +377,7 @@ int CameraHelper::parseEmbedded([[maybe_unused]] Span<const uint8_t> buffer,
  * \param[in] sensorCtrls The sensor control list
  * \param[out] mdCtrls The metadata control list
  *
- * \return 0 in case of success, embedded data present and decoded
+ * \return 0 in case of success, -1 if required controls are missing
  */
 int CameraHelper::sensorControlsToMetaData(const ControlList *sensorCtrls,
 					   ControlList *mdCtrls) const
@@ -414,7 +417,7 @@ int CameraHelper::sensorControlsToMetaData(const ControlList *sensorCtrls,
 	mdCtrls->set(md::WhiteBalanceGain, Span<float>(wbGains));
 
 	/* Arbitrary temperature value */
-	mdCtrls->set(md::Temperature, 25.0);
+	mdCtrls->set(md::Temperature, kDefaultTemperatureCelsius);
 
 	return ret;
 }

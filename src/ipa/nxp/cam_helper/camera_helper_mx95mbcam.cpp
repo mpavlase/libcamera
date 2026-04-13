@@ -1036,7 +1036,7 @@ int CameraHelperMx95mbcam::sensorControlsToMetaData(const ControlList *sensorCtr
 	mdCtrls->set(md::WhiteBalanceGain, Span<float>(wbGainsArray));
 
 	/* No temperature information, report arbitrary value */
-	mdCtrls->set(md::Temperature, 25.0);
+	mdCtrls->set(md::Temperature, kDefaultTemperatureCelsius);
 
 	return ret;
 }

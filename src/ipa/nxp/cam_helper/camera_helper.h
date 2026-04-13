@@ -126,6 +126,8 @@ protected:
 	Attributes attributes_;
 	CameraMode mode_;
 
+	static constexpr float kDefaultTemperatureCelsius = 25.0f;
+
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(CameraHelper)
 };

@@ -160,7 +160,7 @@ int CameraHelperOx05b1s::sensorControlsToMetaData(const ControlList *sensorCtrls
 	mdCtrls->set(md::WhiteBalanceGain, Span<float>(wbGains));
 
 	/* Arbitrary temperature value */
-	mdCtrls->set(md::Temperature, 25.0);
+	mdCtrls->set(md::Temperature, kDefaultTemperatureCelsius);
 
 	return ret;
 }
