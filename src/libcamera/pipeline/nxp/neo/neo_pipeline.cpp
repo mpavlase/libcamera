@@ -192,16 +192,16 @@ enum class PipelineMode {
  * banks (or contexts) of internal registers values that will be applied
  * in sequence in order to produce successive raw images.
  * Those multiple images are used by the pipeline handler as the basis of
- * to produce different streams buffers for the application, that all belong to
+ * to produce different stream buffers for the application, that all belong to
  * the same libcamera::Request.
  * A NxpNeoFrames::InfoContext instance is associated to each image context.
  */
 
 /**
  * \var NxpNeoFrames::InfoContext::buffers_
- * \brief Buffers and status associated to the context image
+ * \brief Buffers and status associated with the context image
  *
- * Each element of the map is a std::pair<BufferFrame *, bool> representing
+ * Each element of the map is a std::pair<FrameBuffer *, bool> representing
  * for each buffer type:
  *  - The buffer itself represented by a FrameBuffer
  *  - The buffer receipt status - true if pending, false once complete
@@ -1630,7 +1630,7 @@ PipelineHandlerNxpNeo::generateConfigurationYuv(Camera *camera,
 	case StreamRole::VideoRecording: {
 		/*
 		 * This is a smart camera, so we assume that all sizes are
-		 * available for all the avaiable codes.
+		 * available for all the available codes.
 		 * Likewise, we assume that front-end can provide all pixel
 		 * formats for all the sensor codes and sizes available.
 		 */
@@ -2537,7 +2537,7 @@ int NxpNeoCameraData::configureYuv(CameraConfiguration *c)
 
 /**
  * \brief Cancel an active request in the pipeline
- * \param[in] request The frame Info bound to the request to be cancelled
+ * \param[in] request The frame Info associated with the request to be cancelled
  */
 void NxpNeoCameraData::cancelCompleteRequest(NxpNeoFrames::Info *info)
 {
