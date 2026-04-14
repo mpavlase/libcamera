@@ -2600,7 +2600,13 @@ void NxpNeoCameraData::feImage0BufferReady(FrameBuffer *buffer)
 	auto [info, context] = frameInfos_.find(buffer);
 	if (!info)
 		return;
-	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
+
+	auto it = info->contexts_.find(context);
+	if (it == info->contexts_.end()) {
+		LOG(NxpNeoPipe, Error) << "Context not found";
+		return;
+	}
+	NxpNeoFrames::InfoContext &infoContext = it->second;
 	infoContext.completeBuffer(buffer);
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
@@ -2641,7 +2647,13 @@ void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
 	auto [info, context] = frameInfos_.find(buffer);
 	if (!info)
 		return;
-	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
+
+	auto it = info->contexts_.find(context);
+	if (it == info->contexts_.end()) {
+		LOG(NxpNeoPipe, Error) << "Context not found";
+		return;
+	}
+	NxpNeoFrames::InfoContext &infoContext = it->second;
 	infoContext.completeBuffer(buffer);
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
