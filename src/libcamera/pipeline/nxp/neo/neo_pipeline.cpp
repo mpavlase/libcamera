@@ -701,12 +701,16 @@ FrameBuffer *NxpNeoFrames::allocBuffer(BufferType bufferType)
 	auto it = buffersMap.find(bufferType);
 	if (it == buffersMap.end()) {
 		LOG(NxpNeoPipe, Error)
-			<< " No buffers for type " << static_cast<int>(bufferType);
+			<< " No buffer pool type " << static_cast<int>(bufferType);
 		return nullptr;
 	}
 
 	std::queue<FrameBuffer *> &queue = it->second;
-	ASSERT(!queue.empty());
+	if (queue.empty()) {
+		LOG(NxpNeoPipe, Error)
+			<< "Buffer pool empty type " << static_cast<int>(bufferType);
+		return nullptr;
+	}
 	FrameBuffer *buffer = queue.front();
 	queue.pop();
 	return buffer;
@@ -842,8 +846,6 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 
 		switch (mode) {
 		case PipelineMode::RgbIrDual:
-			ASSERT(context == CameraContext::Rgb ||
-			       context == CameraContext::Ir);
 			if (context == CameraContext::Rgb)
 				frameBuffer = info->frameStreamBuffer_;
 			else
@@ -853,7 +855,6 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 		case PipelineMode::Standard:
 		case PipelineMode::HdrMerge:
 		default:
-			ASSERT(context == CameraContext::Rgb);
 			frameBuffer = info->frameStreamBuffer_;
 			irBuffer = info->irStreamBuffer_;
 			break;
@@ -1930,7 +1931,11 @@ int NxpNeoCameraData::init()
 
 	for (const FEStream &stream : feCamera_->streams()) {
 		auto it = feReadyFuncs.find(stream);
-		ASSERT(it != feReadyFuncs.end());
+		if (it == feReadyFuncs.end()) {
+			LOG(NxpNeoPipe, Error)
+				<< "No buffer ready callback for stream " << static_cast<int>(stream);
+			return -EINVAL;
+		}
 		V4L2VideoDevice *vdev = feCamera_->videoDevice(stream);
 		if (!vdev)
 			return -ENODEV;
@@ -2583,7 +2588,10 @@ void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContex
 
 	FrameBuffer *paramsBuffer =
 		infoContext.buffer(BufferType::Params);
-	ASSERT(paramsBuffer);
+	if (!paramsBuffer) {
+		LOG(NxpNeoPipe, Error) << "Params buffer not available";
+		return;
+	}
 	bufferIds[ipa::nxpneo::IPABufferTypeParams] = paramsBuffer->cookie();
 
 	ipa_->computeParams(info->id_,
