@@ -13,8 +13,8 @@
 
 #include <deque>
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"

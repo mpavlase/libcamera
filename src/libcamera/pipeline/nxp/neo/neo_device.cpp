@@ -89,31 +89,31 @@ namespace {
 /* Keep those definitions in sync with NeoDevice::VideoDevice enum class. */
 constexpr unsigned int kVideoDeviceCount = 6;
 constexpr std::array<NeoDevice::VideoDevice, kVideoDeviceCount>
-kAllVideoDevices{
-	NeoDevice::VideoDevice::Input0,
-	NeoDevice::VideoDevice::Input1,
-	NeoDevice::VideoDevice::Params,
-	NeoDevice::VideoDevice::Frame,
-	NeoDevice::VideoDevice::Ir,
-	NeoDevice::VideoDevice::Stats,
-};
+	kAllVideoDevices{
+		NeoDevice::VideoDevice::Input0,
+		NeoDevice::VideoDevice::Input1,
+		NeoDevice::VideoDevice::Params,
+		NeoDevice::VideoDevice::Frame,
+		NeoDevice::VideoDevice::Ir,
+		NeoDevice::VideoDevice::Stats,
+	};
 
 constexpr unsigned int kVideoDeviceMetaCount = 2;
 constexpr std::array<NeoDevice::VideoDevice, kVideoDeviceMetaCount>
-kMetaVideoDevices{
-	NeoDevice::VideoDevice::Params,
-	NeoDevice::VideoDevice::Stats,
-};
+	kMetaVideoDevices{
+		NeoDevice::VideoDevice::Params,
+		NeoDevice::VideoDevice::Stats,
+	};
 
 constexpr unsigned int kVideoDeviceMutableCount = 5;
 constexpr std::array<NeoDevice::VideoDevice, kVideoDeviceMutableCount>
-kMutableVideoDevices = {
-	NeoDevice::VideoDevice::Input1,
-	NeoDevice::VideoDevice::Params,
-	NeoDevice::VideoDevice::Frame,
-	NeoDevice::VideoDevice::Ir,
-	NeoDevice::VideoDevice::Stats,
-};
+	kMutableVideoDevices = {
+		NeoDevice::VideoDevice::Input1,
+		NeoDevice::VideoDevice::Params,
+		NeoDevice::VideoDevice::Frame,
+		NeoDevice::VideoDevice::Ir,
+		NeoDevice::VideoDevice::Stats,
+	};
 
 bool isDeviceValid(NeoDevice::VideoDevice device)
 {
@@ -348,10 +348,10 @@ int NeoDevice::allocateBuffers(unsigned int bufferCount)
 		};
 
 	const std::map<VideoDevice, std::vector<std::unique_ptr<FrameBuffer>> *>
-	metaBuffers = {
-		{ VideoDevice::Params, &paramsBuffers_ },
-		{ VideoDevice::Stats, &statsBuffers_ },
-	};
+		metaBuffers = {
+			{ VideoDevice::Params, &paramsBuffers_ },
+			{ VideoDevice::Stats, &statsBuffers_ },
+		};
 
 	for (auto device : configured_) {
 		if (isDeviceMeta(device))

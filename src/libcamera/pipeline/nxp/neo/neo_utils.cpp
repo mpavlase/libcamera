@@ -315,8 +315,8 @@ int PipelineConfig::parseCameras(const YamlObject &cameras)
 
 		if (model.length()) {
 			if (camPropertiesMap_.count(model)) {
-				LOG(NxpNeoPipe, Warning) <<
-					"Duplicate camera model " << model;
+				LOG(NxpNeoPipe, Warning)
+					<< "Duplicate camera model " << model;
 				continue;
 			}
 			camPropertiesMap_[model] = properties;
@@ -324,8 +324,8 @@ int PipelineConfig::parseCameras(const YamlObject &cameras)
 
 		if (entity.length()) {
 			if (camPropertiesMap_.count(entity)) {
-				LOG(NxpNeoPipe, Warning) <<
-					"Duplicate camera entity " << entity;
+				LOG(NxpNeoPipe, Warning)
+					<< "Duplicate camera entity " << entity;
 				continue;
 			}
 			camPropertiesMap_[entity] = properties;
