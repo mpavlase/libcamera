@@ -480,8 +480,8 @@ public:
 	PipelineHandlerNxpNeo(CameraManager *manager)
 		: PipelineHandler(manager, kNeoIspMaxQueuedRequests) {}
 
-	std::unique_ptr<CameraConfiguration> generateConfiguration(Camera *camera,
-								   Span<const StreamRole> roles) override;
+	std::unique_ptr<CameraConfiguration> generateConfiguration(
+		Camera *camera, Span<const StreamRole> roles) override;
 
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
@@ -2459,16 +2459,16 @@ int NxpNeoCameraData::configureRaw(CameraConfiguration *c)
 		Stream *stream = cfg.stream();
 
 		if (stream == &streamFrame_) {
-			streamConfig[ipa::nxpneo::IPAStreamTypeFrame] = IPAStream(cfg.pixelFormat,
-										  cfg.size);
+			streamConfig[ipa::nxpneo::IPAStreamTypeFrame] =
+				IPAStream{ cfg.pixelFormat, cfg.size };
 			/*
 			 * Take color space from the frame if it exists,
-			 * or default to raw (IR only stream case).
+			 * or default to raw (IR-only stream case).
 			 */
 			colorSpace = cfg.colorSpace.value_or(ColorSpace::Raw);
 		} else if (stream == &streamIr_) {
-			streamConfig[ipa::nxpneo::IPAStreamTypeIr] = IPAStream(cfg.pixelFormat,
-									       cfg.size);
+			streamConfig[ipa::nxpneo::IPAStreamTypeIr] =
+				IPAStream{ cfg.pixelFormat, cfg.size };
 		}
 	}
 
