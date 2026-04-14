@@ -72,7 +72,7 @@
 #                     mandatory when configuration is present
 #     loopback      = input/output loopback mode enabled, boolean value
 #                     optional - false by default
-#     tpg-pattern   = test pattern generator pattern selection [0..21]
+#     tpg-pattern   = test pattern generator pattern selection [0..20]
 #                     optional - 0 by default
 #     tpg-hmove     = test pattern generator horizontal movement speed [0..6]
 #                     optional - 3 by default (None)
