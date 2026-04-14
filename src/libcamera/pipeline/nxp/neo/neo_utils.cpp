@@ -363,7 +363,7 @@ int PipelineConfig::loadFileConfig(const std::string &filename)
 
 	if (!file.open(File::OpenModeFlag::ReadOnly)) {
 		LOG(NxpNeoPipe, Info)
-			<< "Failed to open pipeline config file" << filename;
+			<< "Failed to open pipeline config file " << filename;
 		return -ENOENT;
 	}
 
@@ -377,8 +377,7 @@ int PipelineConfig::loadFileConfig(const std::string &filename)
 	double version = (*root)["version"].get<double>().value_or(0.0);
 	if (version != 1.0) {
 		LOG(NxpNeoPipe, Warning)
-			<< "Unexpected pipeline config file version "
-			<< version;
+			<< "Unexpected pipeline config file version " << version;
 		return -EINVAL;
 	}
 
