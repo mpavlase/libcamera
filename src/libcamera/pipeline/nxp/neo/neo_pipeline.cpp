@@ -1813,19 +1813,19 @@ void NxpNeoCameraData::stopDevice()
 
 	V4L2VideoDevice *vdev = feCamera_->videoDevice(FEStream::Image0);
 	if (vdev)
-		vdev->streamOff();
+		ret |= vdev->streamOff();
 	for (const auto &stream : feCamera_->streams()) {
 		if (stream == FEStream::Image0)
 			continue;
 		vdev = feCamera_->videoDevice(stream);
 		if (vdev)
-			vdev->streamOff();
+			ret |= vdev->streamOff();
 	}
 
 	if (isRawCamera()) {
 		ipa_->stop();
 		for (auto &[context, neo] : neoDevices_)
-			neo->stop();
+			ret |= neo->stop();
 	}
 
 	/*
