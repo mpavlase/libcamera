@@ -643,10 +643,8 @@ int NxpNeoFrames::destroy(unsigned int id)
 
 void NxpNeoFrames::clear()
 {
-	for (const auto &[id, infoContext] : frameInfo_)
-		destroy(id);
-
-	frameInfo_.clear();
+	while (!frameInfo_.empty())
+		destroy(frameInfo_.begin()->first);
 }
 
 NxpNeoFrames::Info *NxpNeoFrames::create(Request *request)
