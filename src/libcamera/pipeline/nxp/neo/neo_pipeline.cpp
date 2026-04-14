@@ -1798,28 +1798,10 @@ int NxpNeoCameraData::start([[maybe_unused]] const ControlList *controls)
 	return 0;
 
 error:
-	vdev = feCamera_->videoDevice(FEStream::Image0);
-	if (vdev)
-		vdev->streamOff();
-	for (const auto &stream : feCamera_->streams()) {
-		if (stream == FEStream::Image0)
-			continue;
-		vdev = feCamera_->videoDevice(stream);
-		if (vdev)
-			vdev->streamOff();
-	}
-
-	if (isRawCamera()) {
-		for (auto &[context, neo] : neoDevices_)
-			neo->stop();
-		ipa_->stop();
-	}
-
-	freeBuffers();
-
 	LOG(NxpNeoPipe, Error) << "Failed to start camera " << cameraName();
+	stopDevice();
 
-	return ret;
+	return -EINVAL;
 }
 
 void NxpNeoCameraData::stopDevice()
