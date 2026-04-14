@@ -2662,8 +2662,6 @@ void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
 	}
 
 	Request *request = info->request_;
-	(void)request;
-
 	if (request->findBuffer(&streamRaw_) == buffer)
 		pipe()->completeBuffer(request, buffer);
 
