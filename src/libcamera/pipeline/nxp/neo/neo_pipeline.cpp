@@ -1757,6 +1757,7 @@ int NxpNeoCameraData::start([[maybe_unused]] const ControlList *controls)
 	if (ret)
 		return ret;
 
+	/* Start the IPA and the ISP instances for a raw camera. */
 	if (isRawCamera()) {
 		ret = ipa_->start();
 		if (ret)
@@ -1773,28 +1774,15 @@ int NxpNeoCameraData::start([[maybe_unused]] const ControlList *controls)
 			goto error;
 	}
 
-	/*
-	 * Start the Neo and front-end video devices.
-	 * Secondary streams are started first, then the primary stream.
-	 */
-	V4L2VideoDevice *vdev;
+	/* Start the front-end devices. */
 	for (const auto stream : feCamera_->streams()) {
-		if (stream == FEStream::Image0)
-			continue;
-		vdev = feCamera_->videoDevice(stream);
+		V4L2VideoDevice *vdev = feCamera_->videoDevice(stream);
 		if (!vdev)
 			goto error;
 		ret = vdev->streamOn();
 		if (ret)
 			goto error;
 	}
-
-	vdev = feCamera_->videoDevice(FEStream::Image0);
-	if (!vdev)
-		goto error;
-	ret = vdev->streamOn();
-	if (ret)
-		goto error;
 
 	return 0;
 
@@ -1811,13 +1799,8 @@ void NxpNeoCameraData::stopDevice()
 
 	LOG(NxpNeoPipe, Debug) << "Stop device " << cameraName();
 
-	V4L2VideoDevice *vdev = feCamera_->videoDevice(FEStream::Image0);
-	if (vdev)
-		ret |= vdev->streamOff();
 	for (const auto &stream : feCamera_->streams()) {
-		if (stream == FEStream::Image0)
-			continue;
-		vdev = feCamera_->videoDevice(stream);
+		V4L2VideoDevice *vdev = feCamera_->videoDevice(stream);
 		if (vdev)
 			ret |= vdev->streamOff();
 	}
