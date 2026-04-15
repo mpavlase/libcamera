@@ -61,7 +61,7 @@ const std::map<BlockStatsType, BlockStatsTypeInfo> kBlockTypeInfo = {
 } /* namespace */
 
 NxpNeoStatsBlockBase::NxpNeoStatsBlockBase(NxpNeoStats *stats,
-					   BlockStatsType type, const Span<uint8_t> &data)
+					   const Span<uint8_t> &data)
 	: stats_(stats)
 {
 	if (stats_->isExtensible()) {
