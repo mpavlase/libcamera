@@ -203,7 +203,7 @@ void CameraHelper::setCameraMode(const CameraMode &mode)
 		<< " Bit depth " << mode_.bitdepth
 		<< " Width " << mode_.width
 		<< " Height " << mode_.height
-		<< " StreamMode " << mode_.streamMode;
+		<< " StreamMode " << static_cast<int>(mode_.streamMode);
 }
 
 /**

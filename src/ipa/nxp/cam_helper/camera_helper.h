@@ -53,11 +53,11 @@ extern const ControlIdMap controlIdMap;
 } /* namespace md */
 
 /* Sensor stream modes */
-enum SensorStreamModes {
-	SensorStreamStandard = 0,
-	SensorStreamHdr,
-	SensorStreamRgbIr,
-	SensorStreamDualContext,
+enum class SensorStreamMode {
+	Standard,
+	Hdr,
+	RgbIr,
+	DualContext,
 };
 
 /* Subset of IPACameraSensorInfo structure*/
@@ -73,7 +73,7 @@ struct CameraMode {
 	int32_t hblank;
 	int32_t vblank;
 	/* stream mode */
-	SensorStreamModes streamMode;
+	SensorStreamMode streamMode;
 };
 
 class CameraHelper : public ipa::CameraSensorHelper

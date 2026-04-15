@@ -85,7 +85,7 @@ void CameraHelperOx05b1s::controlListSetAGC(
 	Span<const Duration> exposures, Span<const double> gains)
 {
 	/* In non Dual Context mode, the standard single-capture controls are used. */
-	if (mode_.streamMode != SensorStreamDualContext)
+	if (mode_.streamMode != SensorStreamMode::DualContext)
 		return CameraHelper::controlListSetAGC(ctrls, exposures, gains);
 
 	/* In Dual Context mode, the multi-capture controls are used. */
@@ -118,7 +118,7 @@ int CameraHelperOx05b1s::sensorControlsToMetaData(const ControlList *sensorCtrls
 						  ControlList *mdCtrls) const
 {
 	/* In non Dual Context mode, the standard single-capture controls are used. */
-	if (mode_.streamMode != SensorStreamDualContext)
+	if (mode_.streamMode != SensorStreamMode::DualContext)
 		return CameraHelper::sensorControlsToMetaData(sensorCtrls,
 							      mdCtrls);
 

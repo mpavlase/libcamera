@@ -131,7 +131,7 @@ void CameraHelperOs08a20::controlListSetAGC(
 	Span<const Duration> exposures, Span<const double> gains)
 {
 	/* In non-HDR mode, the standard single-capture controls are used. */
-	if (mode_.streamMode != SensorStreamHdr)
+	if (mode_.streamMode != SensorStreamMode::Hdr)
 		return CameraHelper::controlListSetAGC(ctrls, exposures, gains);
 
 	/* In HDR mode, the multi-capture controls are used. */
@@ -194,7 +194,7 @@ void CameraHelperOs08a20::controlInfoMapGetExposureRange(
 	 * In non-HDR mode, the exposure range comes from
 	 * the standard single-capture controls.
 	 */
-	if (mode_.streamMode != SensorStreamHdr)
+	if (mode_.streamMode != SensorStreamMode::Hdr)
 		return CameraHelper::controlInfoMapGetExposureRange(ctrls, minExposure,
 								    maxExposure, defExposure);
 
@@ -234,7 +234,7 @@ void CameraHelperOs08a20::controlInfoMapGetAnalogGainRange(
 	 * In non-HDR mode, the analog gain range comes from
 	 * the standard single-capture controls.
 	 */
-	if (mode_.streamMode != SensorStreamHdr)
+	if (mode_.streamMode != SensorStreamMode::Hdr)
 		return CameraHelper::controlInfoMapGetAnalogGainRange(ctrls, minGain,
 								      maxGain, defGain);
 
@@ -256,7 +256,7 @@ int CameraHelperOs08a20::sensorControlsToMetaData(const ControlList *sensorCtrls
 	int ret = 0;
 
 	/* In non-HDR mode, the standard single-capture controls are used. */
-	if (mode_.streamMode != SensorStreamHdr)
+	if (mode_.streamMode != SensorStreamMode::Hdr)
 		return CameraHelper::sensorControlsToMetaData(sensorCtrls, mdCtrls);
 
 	/* In HDR mode, the multi-capture controls are used. */

@@ -96,7 +96,7 @@ private:
 				    const ControlList *ctrlsApplied,
 				    const ControlList *ctrlsToApply) const;
 
-	static const std::map<const IPAPipelineMode, SensorStreamModes>
+	static const std::map<const IPAPipelineMode, SensorStreamMode>
 		kSensorStreamModeMap;
 	std::map<unsigned int, FrameBuffer> buffers_;
 	std::map<unsigned int, MappedFrameBuffer> mappedBuffers_;
@@ -111,12 +111,12 @@ private:
 	struct IPAContext context_;
 };
 
-const std::map<const IPAPipelineMode, SensorStreamModes>
+const std::map<const IPAPipelineMode, SensorStreamMode>
 	IPANxpNeo::kSensorStreamModeMap = {
-		{ IPAPipelineMode::Standard, SensorStreamStandard },
-		{ IPAPipelineMode::HdrMerge, SensorStreamHdr },
-		{ IPAPipelineMode::RgbIr, SensorStreamRgbIr },
-		{ IPAPipelineMode::RgbIrDual, SensorStreamDualContext },
+		{ IPAPipelineMode::Standard, SensorStreamMode::Standard },
+		{ IPAPipelineMode::HdrMerge, SensorStreamMode::Hdr },
+		{ IPAPipelineMode::RgbIr, SensorStreamMode::RgbIr },
+		{ IPAPipelineMode::RgbIrDual, SensorStreamMode::DualContext },
 };
 
 IPANxpNeo::IPANxpNeo()
@@ -484,7 +484,7 @@ void IPANxpNeo::updateSensorConfig(const IPACameraSensorInfo &sensorInfo,
 	if (iter != kSensorStreamModeMap.end()) {
 		cameraMode.streamMode = iter->second;
 	} else {
-		cameraMode.streamMode = SensorStreamStandard;
+		cameraMode.streamMode = SensorStreamMode::Standard;
 		LOG(NxpNeoIPA, Warning)
 			<< "No sensor stream mode supported: fallback to standard mode.";
 	}
