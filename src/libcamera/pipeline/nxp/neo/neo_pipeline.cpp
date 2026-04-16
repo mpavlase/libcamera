@@ -261,7 +261,7 @@ public:
 	class InfoContext
 	{
 	public:
-		int completeBuffer(const FrameBuffer *buffer);
+		int resolveBuffer(BufferType bufferType);
 		bool isBufferPending(const std::vector<BufferType> &bufferTypes) const;
 		bool isContextComplete() const;
 		FrameBuffer *buffer(BufferType bufferType) const;
@@ -539,22 +539,17 @@ const std::map<FEStream, BufferType> streamToBufferType = {
 
 }
 
-int NxpNeoFrames::InfoContext::completeBuffer(const FrameBuffer *buffer)
+int NxpNeoFrames::InfoContext::resolveBuffer(BufferType bufferType)
 {
-	auto it = std::find_if(buffers_.begin(), buffers_.end(),
-			       [buffer](const auto &entry) {
-				       const auto &bufferDesc = entry.second;
-				       return bufferDesc.first == buffer;
-			       });
-
+	auto it = buffers_.find(bufferType);
 	if (it == buffers_.end()) {
-		LOG(NxpNeoPipe, Error) << "Buffer to complete not found in Info";
+		LOG(NxpNeoPipe, Error) << "Buffer type to retire not found";
 		return -ENOENT;
 	}
 
 	auto &bufferDesc = it->second;
 	if (!bufferDesc.second) {
-		LOG(NxpNeoPipe, Error) << "Buffer already completed";
+		LOG(NxpNeoPipe, Error) << "Buffer already retired";
 		return -EINVAL;
 	}
 
@@ -2597,12 +2592,13 @@ void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContex
  */
 void NxpNeoCameraData::feImage0BufferReady(FrameBuffer *buffer)
 {
-	auto [info, infoContext, context] =
-		frameInfos_.find(buffer, BufferType::Image0);
+	BufferType bufferType = BufferType::Image0;
+	auto [info, infoContext, context] = frameInfos_.find(buffer, bufferType);
 	if (!info || !infoContext)
 		return;
 
-	infoContext->completeBuffer(buffer);
+	if (infoContext->resolveBuffer(bufferType))
+		return;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2639,12 +2635,13 @@ void NxpNeoCameraData::feImage0BufferReady(FrameBuffer *buffer)
  */
 void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
 {
-	auto [info, infoContext, context] =
-		frameInfos_.find(buffer, BufferType::Image1);
+	BufferType bufferType = BufferType::Image1;
+	auto [info, infoContext, context] = frameInfos_.find(buffer, bufferType);
 	if (!info || !infoContext)
 		return;
 
-	infoContext->completeBuffer(buffer);
+	if (infoContext->resolveBuffer(bufferType))
+		return;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2672,12 +2669,13 @@ void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
  */
 void NxpNeoCameraData::feEDataBufferReady(FrameBuffer *buffer)
 {
-	auto [info, infoContext, context] =
-		frameInfos_.find(buffer, BufferType::EData);
+	BufferType bufferType = BufferType::EData;
+	auto [info, infoContext, context] = frameInfos_.find(buffer, bufferType);
 	if (!info || !infoContext)
 		return;
 
-	infoContext->completeBuffer(buffer);
+	if (infoContext->resolveBuffer(bufferType))
+		return;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2760,7 +2758,8 @@ void NxpNeoCameraData::neoOutputBufferReady(FrameBuffer *buffer,
 	if (!info || !infoContext)
 		return;
 
-	infoContext->completeBuffer(buffer);
+	if (infoContext->resolveBuffer(bufferType))
+		return;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2795,11 +2794,13 @@ void NxpNeoCameraData::neoIrBufferReady(FrameBuffer *buffer)
  */
 void NxpNeoCameraData::neoParamsBufferReady(FrameBuffer *buffer)
 {
-	auto [info, infoContext, context] =
-		frameInfos_.find(buffer, BufferType::Params);
+	BufferType bufferType = BufferType::Params;
+	auto [info, infoContext, context] = frameInfos_.find(buffer, bufferType);
 	if (!info || !infoContext)
 		return;
-	infoContext->completeBuffer(buffer);
+
+	if (infoContext->resolveBuffer(bufferType))
+		return;
 
 	if (infoContext->paramDequeued_)
 		LOG(NxpNeoPipe, Error) << "Params buffer already dequeued ";
@@ -2814,11 +2815,13 @@ void NxpNeoCameraData::neoParamsBufferReady(FrameBuffer *buffer)
  */
 void NxpNeoCameraData::neoStatsBufferReady(FrameBuffer *buffer)
 {
-	auto [info, infoContext, context] =
-		frameInfos_.find(buffer, BufferType::Stats);
+	BufferType bufferType = BufferType::Stats;
+	auto [info, infoContext, context] = frameInfos_.find(buffer, bufferType);
 	if (!info || !infoContext)
 		return;
-	infoContext->completeBuffer(buffer);
+
+	if (infoContext->resolveBuffer(bufferType))
+		return;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
