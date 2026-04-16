@@ -297,8 +297,9 @@ public:
 	Info *create(Request *request);
 
 	Info *find(unsigned int id) const;
-	std::pair<Info *, CameraContext> find(FrameBuffer *buffer) const;
 	Info *find(Request *request) const;
+	std::tuple<Info *, InfoContext *, CameraContext>
+	find(const FrameBuffer *buffer, BufferType bufferType) const;
 
 private:
 	FrameBuffer *allocBuffer(BufferType bufferType);
@@ -391,7 +392,9 @@ private:
 
 	void neoInput0BufferReady(FrameBuffer *buffer);
 	void neoInput1BufferReady(FrameBuffer *buffer);
-	void neoOutputBufferReady(FrameBuffer *buffer);
+	void neoOutputBufferReady(FrameBuffer *buffer, BufferType bufferType);
+	void neoFrameBufferReady(FrameBuffer *buffer);
+	void neoIrBufferReady(FrameBuffer *buffer);
 	void neoParamsBufferReady(FrameBuffer *buffer);
 	void neoStatsBufferReady(FrameBuffer *buffer);
 
@@ -669,21 +672,6 @@ NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id) const
 	return nullptr;
 }
 
-std::pair<NxpNeoFrames::Info *, CameraContext> NxpNeoFrames::find(FrameBuffer *buffer) const
-{
-	for (auto &itInfo : frameInfo_) {
-		Info *info = itInfo.second.get();
-		for (auto &[context, infoContext] : info->contexts_)
-			for (const auto &[bufferType, bufferDesc] : infoContext.buffers_)
-				if (bufferDesc.first == buffer)
-					return { info, context };
-	}
-
-	LOG(NxpNeoPipe, Debug) << "Can't find tracking information from buffer";
-
-	return { nullptr, CameraContext::Rgb };
-}
-
 NxpNeoFrames::Info *NxpNeoFrames::find(Request *request) const
 {
 	for (const auto &itInfo : frameInfo_) {
@@ -695,6 +683,22 @@ NxpNeoFrames::Info *NxpNeoFrames::find(Request *request) const
 	LOG(NxpNeoPipe, Debug) << "Can't find tracking information from request";
 
 	return nullptr;
+}
+
+std::tuple<NxpNeoFrames::Info *, NxpNeoFrames::InfoContext *, CameraContext>
+NxpNeoFrames::find(const FrameBuffer *buffer, BufferType bufferType) const
+{
+	for (const auto &[id, info] : frameInfo_) {
+		for (auto &[context, infoContext] : info->contexts_) {
+			auto it = infoContext.buffers_.find(bufferType);
+			if (it != infoContext.buffers_.end() &&
+			    it->second.first == buffer)
+				return { info.get(), &infoContext, context };
+		}
+	}
+
+	LOG(NxpNeoPipe, Info) << "Can't find frame info from buffer";
+	return { nullptr, nullptr, CameraContext::Rgb };
 }
 
 FrameBuffer *NxpNeoFrames::allocBuffer(BufferType bufferType)
@@ -1957,9 +1961,9 @@ int NxpNeoCameraData::init()
 		neo->input1_->bufferReady.connect(
 			this, &NxpNeoCameraData::neoInput1BufferReady);
 		neo->frame_->bufferReady.connect(
-			this, &NxpNeoCameraData::neoOutputBufferReady);
+			this, &NxpNeoCameraData::neoFrameBufferReady);
 		neo->ir_->bufferReady.connect(
-			this, &NxpNeoCameraData::neoOutputBufferReady);
+			this, &NxpNeoCameraData::neoIrBufferReady);
 		neo->params_->bufferReady.connect(
 			this, &NxpNeoCameraData::neoParamsBufferReady);
 		neo->stats_->bufferReady.connect(
@@ -2590,17 +2594,12 @@ void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContex
  */
 void NxpNeoCameraData::feImage0BufferReady(FrameBuffer *buffer)
 {
-	auto [info, context] = frameInfos_.find(buffer);
-	if (!info)
+	auto [info, infoContext, context] =
+		frameInfos_.find(buffer, BufferType::Image0);
+	if (!info || !infoContext)
 		return;
 
-	auto it = info->contexts_.find(context);
-	if (it == info->contexts_.end()) {
-		LOG(NxpNeoPipe, Error) << "Context not found";
-		return;
-	}
-	NxpNeoFrames::InfoContext &infoContext = it->second;
-	infoContext.completeBuffer(buffer);
+	infoContext->completeBuffer(buffer);
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2637,17 +2636,12 @@ void NxpNeoCameraData::feImage0BufferReady(FrameBuffer *buffer)
  */
 void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
 {
-	auto [info, context] = frameInfos_.find(buffer);
-	if (!info)
+	auto [info, infoContext, context] =
+		frameInfos_.find(buffer, BufferType::Image1);
+	if (!info || !infoContext)
 		return;
 
-	auto it = info->contexts_.find(context);
-	if (it == info->contexts_.end()) {
-		LOG(NxpNeoPipe, Error) << "Context not found";
-		return;
-	}
-	NxpNeoFrames::InfoContext &infoContext = it->second;
-	infoContext.completeBuffer(buffer);
+	infoContext->completeBuffer(buffer);
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2674,11 +2668,12 @@ void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
  */
 void NxpNeoCameraData::feEDataBufferReady(FrameBuffer *buffer)
 {
-	auto [info, context] = frameInfos_.find(buffer);
-	if (!info)
+	auto [info, infoContext, context] =
+		frameInfos_.find(buffer, BufferType::EData);
+	if (!info || !infoContext)
 		return;
-	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
-	infoContext.completeBuffer(buffer);
+
+	infoContext->completeBuffer(buffer);
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2753,13 +2748,15 @@ void NxpNeoCameraData::neoInput1BufferReady([[maybe_unused]] FrameBuffer *buffer
  * Buffers completed from the NEO output are directed to the application.
  * This callback is common to main (frame) and IR ISP outputs.
  */
-void NxpNeoCameraData::neoOutputBufferReady(FrameBuffer *buffer)
+void NxpNeoCameraData::neoOutputBufferReady(FrameBuffer *buffer,
+					    BufferType bufferType)
 {
-	auto [info, context] = frameInfos_.find(buffer);
-	if (!info)
+	auto [info, infoContext, context] =
+		frameInfos_.find(buffer, bufferType);
+	if (!info || !infoContext)
 		return;
-	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
-	infoContext.completeBuffer(buffer);
+
+	infoContext->completeBuffer(buffer);
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
@@ -2778,21 +2775,31 @@ void NxpNeoCameraData::neoOutputBufferReady(FrameBuffer *buffer)
 	tryCompleteRequest(info);
 }
 
+void NxpNeoCameraData::neoFrameBufferReady(FrameBuffer *buffer)
+{
+	neoOutputBufferReady(buffer, BufferType::Frame);
+}
+
+void NxpNeoCameraData::neoIrBufferReady(FrameBuffer *buffer)
+{
+	neoOutputBufferReady(buffer, BufferType::Ir);
+}
+
 /**
  * \brief Handle params buffers consumed by ISP
  * \param[in] buffer The consumed buffer
  */
 void NxpNeoCameraData::neoParamsBufferReady(FrameBuffer *buffer)
 {
-	auto [info, context] = frameInfos_.find(buffer);
-	if (!info)
+	auto [info, infoContext, context] =
+		frameInfos_.find(buffer, BufferType::Params);
+	if (!info || !infoContext)
 		return;
-	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
-	infoContext.completeBuffer(buffer);
+	infoContext->completeBuffer(buffer);
 
-	if (infoContext.paramDequeued_)
+	if (infoContext->paramDequeued_)
 		LOG(NxpNeoPipe, Error) << "Params buffer already dequeued ";
-	infoContext.paramDequeued_ = true;
+	infoContext->paramDequeued_ = true;
 
 	tryCompleteRequest(info);
 }
@@ -2803,11 +2810,11 @@ void NxpNeoCameraData::neoParamsBufferReady(FrameBuffer *buffer)
  */
 void NxpNeoCameraData::neoStatsBufferReady(FrameBuffer *buffer)
 {
-	auto [info, context] = frameInfos_.find(buffer);
-	if (!info)
+	auto [info, infoContext, context] =
+		frameInfos_.find(buffer, BufferType::Stats);
+	if (!info || !infoContext)
 		return;
-	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
-	infoContext.completeBuffer(buffer);
+	infoContext->completeBuffer(buffer);
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
 		cancelCompleteRequest(info);
