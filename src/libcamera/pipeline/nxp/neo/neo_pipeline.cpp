@@ -305,6 +305,7 @@ public:
 
 private:
 	FrameBuffer *reserveBuffer(BufferType bufferType);
+	void releaseBuffer(BufferType bufferType, FrameBuffer *buffer);
 	Info *createRaw(Request *request);
 	Info *createYuv(Request *request);
 
@@ -631,7 +632,7 @@ int NxpNeoFrames::destroy(unsigned int id)
 			    buffer == info->frameStreamBuffer_ ||
 			    buffer == info->irStreamBuffer_)
 				continue;
-			data_->availableBuffersMap_[bufferType].push(buffer);
+			releaseBuffer(bufferType, buffer);
 		}
 	}
 
@@ -713,6 +714,19 @@ FrameBuffer *NxpNeoFrames::reserveBuffer(BufferType bufferType)
 	FrameBuffer *buffer = queue.front();
 	queue.pop();
 	return buffer;
+}
+
+void NxpNeoFrames::releaseBuffer(BufferType bufferType, FrameBuffer *buffer)
+{
+	auto &buffersMap = data_->availableBuffersMap_;
+	auto it = buffersMap.find(bufferType);
+	if (it == buffersMap.end()) {
+		LOG(NxpNeoPipe, Error)
+			<< "No buffer pool type " << static_cast<int>(bufferType);
+		return;
+	}
+	auto &[type, queue] = *it;
+	queue.push(buffer);
 }
 
 NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
