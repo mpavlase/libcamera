@@ -658,7 +658,6 @@ NxpNeoFrames::Info *NxpNeoFrames::create(Request *request)
 NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id) const
 {
 	const auto &itInfo = frameInfo_.find(id);
-
 	if (itInfo != frameInfo_.end())
 		return itInfo->second.get();
 
@@ -669,10 +668,9 @@ NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id) const
 
 NxpNeoFrames::Info *NxpNeoFrames::find(Request *request) const
 {
-	for (const auto &itInfo : frameInfo_) {
-		Info *info = itInfo.second.get();
+	for (const auto &[id, info] : frameInfo_) {
 		if (info->request_ == request)
-			return info;
+			return info.get();
 	}
 
 	LOG(NxpNeoPipe, Debug) << "Can't find tracking information from request";
