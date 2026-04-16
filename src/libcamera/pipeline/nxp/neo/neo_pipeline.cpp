@@ -279,13 +279,15 @@ public:
 	{
 	public:
 		bool isFrameComplete() const;
+		InfoContext *getContext(CameraContext context);
 
 		unsigned int id_;
 		Request *request_;
-		std::map<CameraContext, InfoContext> contexts_;
 
 	private:
 		friend NxpNeoFrames;
+
+		std::map<CameraContext, InfoContext> contexts_;
 
 		FrameBuffer *rawStreamBuffer_;
 		FrameBuffer *frameStreamBuffer_;
@@ -609,6 +611,18 @@ bool NxpNeoFrames::Info::isFrameComplete() const
 	}
 
 	return true;
+}
+
+NxpNeoFrames::InfoContext *
+NxpNeoFrames::Info::getContext(CameraContext context)
+{
+	auto it = contexts_.find(context);
+	if (it == contexts_.end()) {
+		LOG(NxpNeoPipe, Error) << "Frame info for context not found";
+		return nullptr;
+	}
+
+	return &it->second;
 }
 
 NxpNeoFrames::NxpNeoFrames(NxpNeoCameraData *data)
@@ -1857,13 +1871,16 @@ int NxpNeoCameraData::queueRequestDevice(Request *request)
 	if (!info)
 		return -EAGAIN;
 
-	for (const auto &[context, infoContext] : info->contexts_) {
+	for (const CameraContext context : contexts()) {
+		NxpNeoFrames::InfoContext *infoContext = info->getContext(context);
+		if (!infoContext)
+			continue;
 		for (const auto &stream : feCamera_->streams()) {
 			V4L2VideoDevice *vdev = feCamera_->videoDevice(stream);
 			if (!vdev)
 				return -ENODEV;
 			BufferType bufferType = streamToBufferType.at(stream);
-			FrameBuffer *buffer = infoContext.getBuffer(bufferType);
+			FrameBuffer *buffer = infoContext->getBuffer(bufferType);
 			if (!buffer)
 				continue;
 			ret |= vdev->queueBuffer(buffer);
@@ -2562,25 +2579,27 @@ void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContex
 	static const std::vector<BufferType> inputBufferTypes = {
 		BufferType::Image0, BufferType::Image1, BufferType::EData
 	};
-	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
-	if (infoContext.isBufferPending(inputBufferTypes))
+	NxpNeoFrames::InfoContext *infoContext = info->getContext(context);
+	if (!infoContext)
+		return;
+	if (infoContext->isBufferPending(inputBufferTypes))
 		return;
 
 	std::map<ipa::nxpneo::IPABufferType, uint32_t> bufferIds;
 
-	FrameBuffer *image0Buffer = infoContext.getBuffer(BufferType::Image0);
+	FrameBuffer *image0Buffer = infoContext->getBuffer(BufferType::Image0);
 	if (image0Buffer)
 		bufferIds[ipa::nxpneo::IPABufferType::Image0] = image0Buffer->cookie();
 
-	FrameBuffer *image1Buffer = infoContext.getBuffer(BufferType::Image1);
+	FrameBuffer *image1Buffer = infoContext->getBuffer(BufferType::Image1);
 	if (image1Buffer)
 		bufferIds[ipa::nxpneo::IPABufferType::Image1] = image1Buffer->cookie();
 
-	FrameBuffer *edataBuffer = infoContext.getBuffer(BufferType::EData);
+	FrameBuffer *edataBuffer = infoContext->getBuffer(BufferType::EData);
 	if (edataBuffer)
 		bufferIds[ipa::nxpneo::IPABufferType::EData] = edataBuffer->cookie();
 
-	FrameBuffer *paramsBuffer = infoContext.getBuffer(BufferType::Params);
+	FrameBuffer *paramsBuffer = infoContext->getBuffer(BufferType::Params);
 	if (!paramsBuffer) {
 		LOG(NxpNeoPipe, Error) << "Params buffer not available";
 		return;
@@ -2866,38 +2885,35 @@ void NxpNeoCameraData::ipaParamsComputed(unsigned int id,
 		return;
 
 	CameraContext _context = static_cast<CameraContext>(context);
-	auto it = info->contexts_.find(_context);
-	if (it == info->contexts_.end()) {
-		LOG(NxpNeoPipe, Error) << "Invalid context from IPA";
+	NxpNeoFrames::InfoContext *infoContext = info->getContext(_context);
+	if (!infoContext)
 		return;
-	}
-	NxpNeoFrames::InfoContext &infoContext = it->second;
 
 	int ret = 0;
 	/* Queue ISP output buffers */
 	NeoDevice *neo = neoDevice(_context);
 	if (!neo)
 		return;
-	FrameBuffer *frameBuffer = infoContext.getBuffer(BufferType::Frame);
+	FrameBuffer *frameBuffer = infoContext->getBuffer(BufferType::Frame);
 	if (frameBuffer)
 		ret |= neo->frame_->queueBuffer(frameBuffer);
-	FrameBuffer *irBuffer = infoContext.getBuffer(BufferType::Ir);
+	FrameBuffer *irBuffer = infoContext->getBuffer(BufferType::Ir);
 	if (irBuffer)
 		ret |= neo->ir_->queueBuffer(irBuffer);
 
 	/* Queue ISP params and stats buffers */
-	FrameBuffer *paramsBuffer = infoContext.getBuffer(BufferType::Params);
+	FrameBuffer *paramsBuffer = infoContext->getBuffer(BufferType::Params);
 	if (paramsBuffer) {
 		paramsBuffer->_d()->metadata().planes()[0].bytesused = bytesused;
 		ret |= neo->params_->queueBuffer(paramsBuffer);
 	}
-	FrameBuffer *statsBuffer = infoContext.getBuffer(BufferType::Stats);
+	FrameBuffer *statsBuffer = infoContext->getBuffer(BufferType::Stats);
 	if (statsBuffer)
 		ret |= neo->stats_->queueBuffer(statsBuffer);
 
 	/* Queue ISP input buffers */
-	FrameBuffer *image0Buffer = infoContext.getBuffer(BufferType::Image0);
-	FrameBuffer *image1Buffer = infoContext.getBuffer(BufferType::Image1);
+	FrameBuffer *image0Buffer = infoContext->getBuffer(BufferType::Image0);
+	FrameBuffer *image1Buffer = infoContext->getBuffer(BufferType::Image1);
 	if (image0Buffer)
 		ret |= neo->input0_->queueBuffer(image0Buffer);
 	if (image1Buffer) {
@@ -2925,15 +2941,14 @@ void NxpNeoCameraData::ipaMetadataReady(unsigned int id,
 	Request *request = info->request_;
 	request->_d()->metadata().merge(metadata);
 
-	auto it = info->contexts_.find(static_cast<CameraContext>(context));
-	if (it == info->contexts_.end()) {
-		LOG(NxpNeoPipe, Error) << "Invalid context from IPA";
+	CameraContext _context = static_cast<CameraContext>(context);
+	NxpNeoFrames::InfoContext *infoContext = info->getContext(_context);
+	if (!infoContext)
 		return;
-	}
-	NxpNeoFrames::InfoContext &infoContext = it->second;
-	if (infoContext.metadataProcessed_)
+
+	if (infoContext->metadataProcessed_)
 		LOG(NxpNeoPipe, Error) << "Metadata already processed";
-	infoContext.metadataProcessed_ = true;
+	infoContext->metadataProcessed_ = true;
 	tryCompleteRequest(info);
 }
 
