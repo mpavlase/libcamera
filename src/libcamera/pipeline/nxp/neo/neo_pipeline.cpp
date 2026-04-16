@@ -304,7 +304,7 @@ public:
 	find(const FrameBuffer *buffer, BufferType bufferType) const;
 
 private:
-	FrameBuffer *allocBuffer(BufferType bufferType);
+	FrameBuffer *reserveBuffer(BufferType bufferType);
 	Info *createRaw(Request *request);
 	Info *createYuv(Request *request);
 
@@ -694,13 +694,13 @@ NxpNeoFrames::find(const FrameBuffer *buffer, BufferType bufferType) const
 	return { nullptr, nullptr, CameraContext::Rgb };
 }
 
-FrameBuffer *NxpNeoFrames::allocBuffer(BufferType bufferType)
+FrameBuffer *NxpNeoFrames::reserveBuffer(BufferType bufferType)
 {
 	auto &buffersMap = data_->availableBuffersMap_;
 	auto it = buffersMap.find(bufferType);
 	if (it == buffersMap.end()) {
 		LOG(NxpNeoPipe, Error)
-			<< " No buffer pool type " << static_cast<int>(bufferType);
+			<< "No buffer pool type " << static_cast<int>(bufferType);
 		return nullptr;
 	}
 
@@ -807,26 +807,26 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 
 		auto &buffersMap = infoContext.buffers_;
 		if (hasImage0 && !image0Buffer)
-			image0Buffer = allocBuffer(BufferType::Image0);
+			image0Buffer = reserveBuffer(BufferType::Image0);
 		if (image0Buffer)
 			buffersMap.insert({ BufferType::Image0, { image0Buffer, true } });
 
 		if (hasImage1 && !image1Buffer)
-			image1Buffer = allocBuffer(BufferType::Image1);
+			image1Buffer = reserveBuffer(BufferType::Image1);
 		if (image1Buffer)
 			buffersMap.insert({ BufferType::Image1, { image1Buffer, true } });
 
 		bool hasEmbeddedData =
 			data_->availableBuffersMap_.count(BufferType::EData);
 		if (hasEmbeddedData) {
-			FrameBuffer *edataBuffer = allocBuffer(BufferType::EData);
+			FrameBuffer *edataBuffer = reserveBuffer(BufferType::EData);
 			buffersMap.insert({ BufferType::EData, { edataBuffer, true } });
 		}
 
 		/* Map the ISP params / stats internal buffers */
-		FrameBuffer *paramsBuffer = allocBuffer(BufferType::Params);
+		FrameBuffer *paramsBuffer = reserveBuffer(BufferType::Params);
 		buffersMap.insert({ BufferType::Params, { paramsBuffer, true } });
-		FrameBuffer *statsBuffer = allocBuffer(BufferType::Stats);
+		FrameBuffer *statsBuffer = reserveBuffer(BufferType::Stats);
 		buffersMap.insert({ BufferType::Stats, { statsBuffer, true } });
 
 		infoContext.paramDequeued_ = false;
