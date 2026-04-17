@@ -574,16 +574,14 @@ bool NxpNeoFrames::InfoContext::isBufferPending(
 
 bool NxpNeoFrames::InfoContext::isContextComplete() const
 {
-	const std::vector<BufferType> allBufferTypes = {
-		BufferType::Image0,
-		BufferType::Image1,
-		BufferType::EData,
-		BufferType::Params,
-		BufferType::Stats,
-		BufferType::Frame,
-		BufferType::Ir,
-	};
-	bool buffersComplete = !isBufferPending(allBufferTypes);
+	bool buffersComplete = true;
+	for (const auto &[type, bufferDesc] : buffers_) {
+		if (bufferDesc.second) {
+			buffersComplete = false;
+			break;
+		}
+	}
+
 	bool complete = buffersComplete &&
 			metadataProcessed_ && paramDequeued_;
 
