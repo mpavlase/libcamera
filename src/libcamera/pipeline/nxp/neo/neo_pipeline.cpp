@@ -1959,6 +1959,12 @@ int NxpNeoCameraData::init()
 
 	properties_ = sensor()->properties();
 
+	static const std::vector<CameraContext>
+		singleContext{ CameraContext::Rgb };
+	static const std::vector<CameraContext>
+		dualContext{ CameraContext::Rgb, CameraContext::Ir };
+	contexts_ = mode_ == PipelineMode::RgbIrDual ? dualContext : singleContext;
+
 	/*
 	 * Further initializations are relevant to the ISP and IPA. For the
 	 * camera pipelines that do not use the ISP, there is nothing more to
@@ -1966,10 +1972,6 @@ int NxpNeoCameraData::init()
 	 */
 	if (!isRawCamera())
 		return 0;
-
-	contexts_ = mode_ == PipelineMode::RgbIrDual
-			    ? std::vector<CameraContext>{ CameraContext::Rgb, CameraContext::Ir }
-			    : std::vector<CameraContext>{ CameraContext::Rgb };
 
 	const std::vector<NeoDevice *> &neoDevices = feCamera_->neoDevices();
 	if (contexts_.size() != neoDevices.size()) {
