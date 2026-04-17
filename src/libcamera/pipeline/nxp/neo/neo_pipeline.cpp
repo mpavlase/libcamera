@@ -180,7 +180,7 @@ enum class PipelineMode {
  * stats buffers exchanged between the pipeline handler and the IPA.
  * NxpNeoFrames class supports the handling of the libcamera::Request
  * concurrently active at a point of time in the pipeline handler, by
- * maintaining a NxpNeoFrames::Info instance for each request in progress until
+ * maintaining a NxpNeoFrames::Info instance for each Request in progress until
  * its completion.
  */
 
@@ -191,34 +191,36 @@ enum class PipelineMode {
  * Some sensors have specific modes of operation where they maintain multiple
  * banks (or contexts) of internal registers values that will be applied
  * in sequence in order to produce successive raw images.
- * Those multiple images are used by the pipeline handler as the basis of
- * to produce different stream buffers for the application, that all belong to
- * the same libcamera::Request.
- * A NxpNeoFrames::InfoContext instance is associated to each image context.
+ * Those multiple images are used by the pipeline handler to produce different
+ * stream buffers for the application, that all belong to the same
+ * libcamera::Request.
+ * A NxpNeoFrames::InfoContext instance is associated to each camera context.
  */
 
 /**
- * \var NxpNeoFrames::InfoContext::buffers_
- * \brief Buffers and status associated with the context image
- *
- * Each element of the map is a std::pair<FrameBuffer *, bool> representing
- * for each buffer type:
- *  - The buffer itself represented by a FrameBuffer
- *  - The buffer receipt status - true if pending, false once complete
- * The buffers associated to a context are:
- *  - The front end buffers usually allocated from internal buffer pools but
- *    may also come from the application when a raw stream is mapped
- *  - The ISP params and stats buffers exchanged between the pipeline handler
- *    and the IPA, allocated from internal buffer pools
- *  - The buffers for the images decoded by the ISP, usually provided by the
- *    application as the buffers associated to the streams.
- * Buffers allocation and mapping is done at NxpNeoFrames::Info creation time.
- *
  * \var NxpNeoFrames::InfoContext::paramDequeued_
  * \brief Indicates that the params buffer has been consumed by the ISP
  *
  * \var NxpNeoFrames::InfoContext::metadataProcessed_
  * \brief Indicates that the IPA produced the metadata from the ISP stats buffer
+
+ * \var NxpNeoFrames::InfoContext::buffers_
+ * \brief Buffers and status associated with the context image
+ *
+ * Each element of the map is a std::pair<FrameBuffer *, bool> holding for each
+ * buffer type:
+ *  - The buffer itself represented by a FrameBuffer
+ *  - The buffer processing status - true if pending, false once complete
+ * The types of buffer associated to a context are:
+ *  - The front end buffers, usually allocated from internal buffer pools but
+ *    may also come from the application when a raw stream exists
+ *  - The ISP params and stats buffers exchanged between the pipeline handler
+ *    and the IPA, allocated from internal buffer pools
+ *  - The buffers for the images decoded by the ISP, usually provided by the
+ *    application as the buffers associated to the streams.
+ * Buffers allocation and mapping for each buffer type is done at
+ * NxpNeoFrames::Info creation time.
+ *
  */
 
 /**
