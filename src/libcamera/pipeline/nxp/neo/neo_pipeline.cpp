@@ -300,10 +300,10 @@ public:
 	void clear();
 	Info *create(Request *request);
 
-	Info *find(unsigned int id) const;
-	Info *find(Request *request) const;
+	Info *find(unsigned int id);
+	Info *find(Request *request);
 	std::tuple<Info *, InfoContext *, CameraContext>
-	find(const FrameBuffer *buffer, BufferType bufferType) const;
+	find(const FrameBuffer *buffer, BufferType bufferType);
 
 private:
 	FrameBuffer *reserveBuffer(BufferType bufferType);
@@ -312,7 +312,7 @@ private:
 	Info *createYuv(Request *request);
 
 	NxpNeoCameraData *data_;
-	std::map<unsigned int, std::unique_ptr<Info>> frameInfo_;
+	std::map<unsigned int, Info> frameInfo_;
 };
 
 class NxpNeoCameraData : public Camera::Private
@@ -670,22 +670,22 @@ NxpNeoFrames::Info *NxpNeoFrames::create(Request *request)
 		return createYuv(request);
 }
 
-NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id) const
+NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id)
 {
-	const auto &itInfo = frameInfo_.find(id);
-	if (itInfo != frameInfo_.end())
-		return itInfo->second.get();
+	const auto it = frameInfo_.find(id);
+	if (it != frameInfo_.end())
+		return &it->second;
 
 	LOG(NxpNeoPipe, Debug) << "Can't find tracking information for frame " << id;
 
 	return nullptr;
 }
 
-NxpNeoFrames::Info *NxpNeoFrames::find(Request *request) const
+NxpNeoFrames::Info *NxpNeoFrames::find(Request *request)
 {
-	for (const auto &[id, info] : frameInfo_) {
-		if (info->request_ == request)
-			return info.get();
+	for (auto &[id, info] : frameInfo_) {
+		if (info.request_ == request)
+			return &info;
 	}
 
 	LOG(NxpNeoPipe, Debug) << "Can't find tracking information from request";
@@ -694,14 +694,14 @@ NxpNeoFrames::Info *NxpNeoFrames::find(Request *request) const
 }
 
 std::tuple<NxpNeoFrames::Info *, NxpNeoFrames::InfoContext *, CameraContext>
-NxpNeoFrames::find(const FrameBuffer *buffer, BufferType bufferType) const
+NxpNeoFrames::find(const FrameBuffer *buffer, BufferType bufferType)
 {
-	for (const auto &[id, info] : frameInfo_) {
-		for (auto &[context, infoContext] : info->contexts_) {
+	for (auto &[id, info] : frameInfo_) {
+		for (auto &[context, infoContext] : info.contexts_) {
 			auto it = infoContext.buffers_.find(bufferType);
 			if (it != infoContext.buffers_.end() &&
 			    it->second.first == buffer)
-				return { info.get(), &infoContext, context };
+				return { &info, &infoContext, context };
 		}
 	}
 
@@ -768,20 +768,18 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 		}
 	}
 
-	/* \todo Remove the dynamic allocation of Info */
-	std::unique_ptr<Info> info = std::make_unique<Info>();
-
-	info->id_ = id;
-	info->request_ = request;
-	info->rawStreamBuffer_ = request->findBuffer(&data_->streamRaw_);
-	info->frameStreamBuffer_ = request->findBuffer(&data_->streamFrame_);
-	info->irStreamBuffer_ = request->findBuffer(&data_->streamIr_);
-	info->contexts_.insert({ CameraContext::Rgb, {} });
+	Info &info = frameInfo_[id];
+	info.id_ = id;
+	info.request_ = request;
+	info.rawStreamBuffer_ = request->findBuffer(&data_->streamRaw_);
+	info.frameStreamBuffer_ = request->findBuffer(&data_->streamFrame_);
+	info.irStreamBuffer_ = request->findBuffer(&data_->streamIr_);
+	info.contexts_.insert({ CameraContext::Rgb, {} });
 	if (data_->mode_ == PipelineMode::RgbIrDual)
-		info->contexts_.insert({ CameraContext::Ir, {} });
+		info.contexts_.insert({ CameraContext::Ir, {} });
 
 	bool evenRequest = (id % 2 == 0);
-	for (auto &[context, infoContext] : info->contexts_) {
+	for (auto &[context, infoContext] : info.contexts_) {
 		/*
 		 * Map the ISP input buffers that are typically internal buffers
 		 * unless the raw stream is active in which case the raw buffer
@@ -807,7 +805,7 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 				   context == CameraContext::Ir));
 
 		bool alternatedRawStream = data_->alternatedRawStream_;
-		if (info->rawStreamBuffer_) {
+		if (info.rawStreamBuffer_) {
 			if (alternatedRawStream &&
 			    mode == PipelineMode::RgbIrDual) {
 				CameraContext rawContext =
@@ -816,20 +814,20 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 						: CameraContext::Ir;
 				if (context == rawContext) {
 					if (hasImage0)
-						image0Buffer = info->rawStreamBuffer_;
+						image0Buffer = info.rawStreamBuffer_;
 					else
-						image1Buffer = info->rawStreamBuffer_;
+						image1Buffer = info.rawStreamBuffer_;
 				}
 			} else if (alternatedRawStream &&
 				   mode == PipelineMode::HdrMerge) {
 				if (evenRequest)
-					image0Buffer = info->rawStreamBuffer_;
+					image0Buffer = info.rawStreamBuffer_;
 				else
-					image1Buffer = info->rawStreamBuffer_;
+					image1Buffer = info.rawStreamBuffer_;
 
 			} else {
 				if (hasImage0)
-					image0Buffer = info->rawStreamBuffer_;
+					image0Buffer = info.rawStreamBuffer_;
 			}
 		}
 
@@ -874,16 +872,16 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 		switch (mode) {
 		case PipelineMode::RgbIrDual:
 			if (context == CameraContext::Rgb)
-				frameBuffer = info->frameStreamBuffer_;
+				frameBuffer = info.frameStreamBuffer_;
 			else
-				irBuffer = info->irStreamBuffer_;
+				irBuffer = info.irStreamBuffer_;
 			break;
 		case PipelineMode::RgbIr:
 		case PipelineMode::Standard:
 		case PipelineMode::HdrMerge:
 		default:
-			frameBuffer = info->frameStreamBuffer_;
-			irBuffer = info->irStreamBuffer_;
+			frameBuffer = info.frameStreamBuffer_;
+			irBuffer = info.irStreamBuffer_;
 			break;
 		}
 
@@ -893,36 +891,31 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 			buffersMap.insert({ BufferType::Ir, { irBuffer, true } });
 	}
 
-	frameInfo_[id] = std::move(info);
-
-	return frameInfo_[id].get();
+	return &info;
 }
 
 NxpNeoFrames::Info *NxpNeoFrames::createYuv(Request *request)
 {
 	unsigned int id = request->sequence();
 
-	std::unique_ptr<Info> info = std::make_unique<Info>();
-
 	/* Single context, the output buffer is provided by application. */
-	info->id_ = id;
-	info->request_ = request;
-	info->rawStreamBuffer_ = request->findBuffer(&data_->streamRaw_);
-	info->frameStreamBuffer_ = nullptr;
-	info->irStreamBuffer_ = nullptr;
+	Info &info = frameInfo_[id];
+	info.id_ = id;
+	info.request_ = request;
+	info.rawStreamBuffer_ = request->findBuffer(&data_->streamRaw_);
+	info.frameStreamBuffer_ = nullptr;
+	info.irStreamBuffer_ = nullptr;
 
-	info->contexts_.insert({ CameraContext::Rgb, {} });
-	InfoContext &infoContext = info->contexts_.at(CameraContext::Rgb);
+	info.contexts_.insert({ CameraContext::Rgb, {} });
+	InfoContext &infoContext = info.contexts_.at(CameraContext::Rgb);
 	auto &buffersMap = infoContext.buffers_;
-	buffersMap.insert({ BufferType::Image0, { info->rawStreamBuffer_, true } });
+	buffersMap.insert({ BufferType::Image0, { info.rawStreamBuffer_, true } });
 
 	/* IPA-related operations are bypassed */
 	infoContext.paramDequeued_ = true;
 	infoContext.metadataProcessed_ = true;
 
-	frameInfo_[id] = std::move(info);
-
-	return frameInfo_[id].get();
+	return &info;
 }
 
 NxpNeoCameraConfiguration::NxpNeoCameraConfiguration(Camera *camera,
