@@ -550,13 +550,13 @@ int NxpNeoFrames::InfoContext::resolveBuffer(BufferType bufferType)
 		return -ENOENT;
 	}
 
-	auto &bufferDesc = it->second;
-	if (!bufferDesc.second) {
+	auto &[buffer, pending] = it->second;
+	if (!pending) {
 		LOG(NxpNeoPipe, Error) << "Buffer already retired";
 		return -EINVAL;
 	}
 
-	bufferDesc.second = false;
+	pending = false;
 	return 0;
 }
 
@@ -564,11 +564,11 @@ bool NxpNeoFrames::InfoContext::isBufferPending(
 	const std::vector<BufferType> &bufferTypes) const
 {
 	for (BufferType bufferType : bufferTypes) {
-		auto it = buffers_.find(bufferType);
+		const auto it = buffers_.find(bufferType);
 		if (it == buffers_.end())
 			continue;
-		const auto &bufferDesc = it->second;
-		if (bufferDesc.second)
+		const auto &[buffer, pending] = it->second;
+		if (pending)
 			return true;
 	}
 
@@ -579,7 +579,8 @@ bool NxpNeoFrames::InfoContext::isContextComplete() const
 {
 	bool buffersComplete = true;
 	for (const auto &[type, bufferDesc] : buffers_) {
-		if (bufferDesc.second) {
+		const auto &[buffer, pending] = bufferDesc;
+		if (pending) {
 			buffersComplete = false;
 			break;
 		}
@@ -593,13 +594,11 @@ bool NxpNeoFrames::InfoContext::isContextComplete() const
 
 FrameBuffer *NxpNeoFrames::InfoContext::getBuffer(BufferType bufferType) const
 {
-	FrameBuffer *buffer = nullptr;
 	auto it = buffers_.find(bufferType);
-	if (it != buffers_.end()) {
-		const auto &bufferDesc = it->second;
-		buffer = bufferDesc.first;
-	}
+	if (it == buffers_.end())
+		return nullptr;
 
+	const auto &[buffer, pending] = it->second;
 	return buffer;
 }
 
@@ -641,7 +640,7 @@ int NxpNeoFrames::destroy(unsigned int id)
 	/* Return internal buffers for reuse. */
 	for (const auto &[context, infoContext] : info->contexts_) {
 		for (const auto &[bufferType, bufferDesc] : infoContext.buffers_) {
-			FrameBuffer *buffer = bufferDesc.first;
+			const auto &[buffer, pending] = bufferDesc;
 			if (buffer == info->rawStreamBuffer_ ||
 			    buffer == info->frameStreamBuffer_ ||
 			    buffer == info->irStreamBuffer_)
