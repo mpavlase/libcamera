@@ -773,9 +773,9 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 	info.rawStreamBuffer_ = request->findBuffer(&data_->streamRaw_);
 	info.frameStreamBuffer_ = request->findBuffer(&data_->streamFrame_);
 	info.irStreamBuffer_ = request->findBuffer(&data_->streamIr_);
-	info.contexts_.insert({ CameraContext::Rgb, {} });
+	info.contexts_.emplace(CameraContext::Rgb, InfoContext{});
 	if (data_->mode_ == PipelineMode::RgbIrDual)
-		info.contexts_.insert({ CameraContext::Ir, {} });
+		info.contexts_.emplace(CameraContext::Ir, InfoContext{});
 
 	bool evenRequest = (id % 2 == 0);
 	for (auto &[context, infoContext] : info.contexts_) {
@@ -834,25 +834,30 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 		if (hasImage0 && !image0Buffer)
 			image0Buffer = reserveBuffer(BufferType::Image0);
 		if (image0Buffer)
-			buffersMap.insert({ BufferType::Image0, { image0Buffer, true } });
+			buffersMap.emplace(BufferType::Image0,
+					   std::make_pair(image0Buffer, true));
 
 		if (hasImage1 && !image1Buffer)
 			image1Buffer = reserveBuffer(BufferType::Image1);
 		if (image1Buffer)
-			buffersMap.insert({ BufferType::Image1, { image1Buffer, true } });
+			buffersMap.emplace(BufferType::Image1,
+					   std::make_pair(image1Buffer, true));
 
 		bool hasEmbeddedData =
 			data_->availableBuffersMap_.count(BufferType::EData);
 		if (hasEmbeddedData) {
 			FrameBuffer *edataBuffer = reserveBuffer(BufferType::EData);
-			buffersMap.insert({ BufferType::EData, { edataBuffer, true } });
+			buffersMap.emplace(BufferType::EData,
+					   std::make_pair(edataBuffer, true));
 		}
 
 		/* Map the ISP params / stats internal buffers */
 		FrameBuffer *paramsBuffer = reserveBuffer(BufferType::Params);
-		buffersMap.insert({ BufferType::Params, { paramsBuffer, true } });
+		buffersMap.emplace(BufferType::Params,
+				   std::make_pair(paramsBuffer, true));
 		FrameBuffer *statsBuffer = reserveBuffer(BufferType::Stats);
-		buffersMap.insert({ BufferType::Stats, { statsBuffer, true } });
+		buffersMap.emplace(BufferType::Stats,
+				   std::make_pair(statsBuffer, true));
 
 		infoContext.paramDequeued_ = false;
 		infoContext.metadataProcessed_ = false;
@@ -885,9 +890,11 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 		}
 
 		if (frameBuffer)
-			buffersMap.insert({ BufferType::Frame, { frameBuffer, true } });
+			buffersMap.emplace(BufferType::Frame,
+					   std::make_pair(frameBuffer, true));
 		if (irBuffer)
-			buffersMap.insert({ BufferType::Ir, { irBuffer, true } });
+			buffersMap.emplace(BufferType::Ir,
+					   std::make_pair(irBuffer, true));
 	}
 
 	return &info;
@@ -905,10 +912,12 @@ NxpNeoFrames::Info *NxpNeoFrames::createYuv(Request *request)
 	info.frameStreamBuffer_ = nullptr;
 	info.irStreamBuffer_ = nullptr;
 
-	info.contexts_.insert({ CameraContext::Rgb, {} });
-	InfoContext &infoContext = info.contexts_.at(CameraContext::Rgb);
+	auto [it, inserted] =
+		info.contexts_.emplace(CameraContext::Rgb, InfoContext{});
+	InfoContext &infoContext = it->second;
 	auto &buffersMap = infoContext.buffers_;
-	buffersMap.insert({ BufferType::Image0, { info.rawStreamBuffer_, true } });
+	buffersMap.emplace(BufferType::Image0,
+			   std::make_pair(info.rawStreamBuffer_, true));
 
 	/* IPA-related operations are bypassed */
 	infoContext.paramDequeued_ = true;
