@@ -2554,8 +2554,9 @@ void NxpNeoCameraData::tryCompleteRequest(NxpNeoFrames::Info *info)
  */
 void NxpNeoCameraData::feInputBufferReady(NxpNeoFrames::Info *info, CameraContext context)
 {
-	const std::vector<BufferType>
-		inputBufferTypes = { BufferType::Image0, BufferType::Image1, BufferType::EData };
+	static const std::vector<BufferType> inputBufferTypes = {
+		BufferType::Image0, BufferType::Image1, BufferType::EData
+	};
 	NxpNeoFrames::InfoContext &infoContext = info->contexts_.at(context);
 	if (infoContext.isBufferPending(inputBufferTypes))
 		return;
@@ -2654,9 +2655,10 @@ void NxpNeoCameraData::feImage1BufferReady(FrameBuffer *buffer)
 	if (request->findBuffer(&streamRaw_) == buffer)
 		pipe()->completeBuffer(request, buffer);
 
+	static const std::vector<BufferType> image0BufferType = { BufferType::Image0 };
 	if (mode_ == PipelineMode::HdrMerge &&
-	    infoContext.isBufferPending({ BufferType::Image0 }))
-		LOG(NxpNeoPipe, Warning) << "Out of order input frame receipt";
+	    infoContext->isBufferPending(image0BufferType))
+		LOG(NxpNeoPipe, Info) << "Out of order input frame receipt";
 
 	feInputBufferReady(info, context);
 }
