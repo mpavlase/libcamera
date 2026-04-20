@@ -185,7 +185,15 @@ enum class PipelineMode {
  */
 
 /**
- * \struct NxpNeoFrames::InfoContext
+ * \var NxpNeoFrames::data_
+ * \brief Pointer to the NxpNeoCameraData instance
+ *
+ * \var NxpNeoFrames::frameInfo_
+ * \brief Map of active frame Info instances indexed by libcamera::Request id
+ */
+
+/**
+ * \class NxpNeoFrames::InfoContext
  * \brief Frame context descriptor
  *
  * Some sensors have specific modes of operation where they maintain multiple
@@ -224,7 +232,7 @@ enum class PipelineMode {
  */
 
 /**
- * \struct NxpNeoFrames::Info
+ * \class NxpNeoFrames::Info
  * \brief Frame context descriptor
  *
  * A NxpNeoFrames::Info represents an active libcamera::Request in the pipeline
@@ -242,6 +250,9 @@ enum class PipelineMode {
  * \var NxpNeoFrames::Info::request_
  * \brief The libcamera::Request bundled to that frame
  *
+ * \var NxpNeoFrames::Info::contexts_
+ * \brief Map of one or more context instances associated to this frame
+ *
  * \var NxpNeoFrames::Info::rawStreamBuffer_
  * \brief The application raw Stream buffer from the request - null if none
  *
@@ -250,9 +261,6 @@ enum class PipelineMode {
  *
  *  \var NxpNeoFrames::Info::irStreamBuffer_
  * \brief The application IR Stream buffer from the request - null if none
- *
- *  \var NxpNeoFrames::Info::contexts_
- * \brief Map of one or more context instances associated to this frame
  */
 
 class NxpNeoFrames
@@ -542,6 +550,16 @@ const std::map<FEStream, BufferType> streamToBufferType = {
 
 }
 
+/**
+ * \brief Mark a buffer as completed for this context
+ * \param[in] bufferType The type of buffer to mark as complete
+ *
+ * This function marks a buffer of the specified type as no longer pending,
+ * indicating that its processing has completed.
+ *
+ * \return 0 on success, -ENOENT if the buffer type is not found, or -EINVAL
+ * if the buffer was already resolved
+ */
 int NxpNeoFrames::InfoContext::resolveBuffer(BufferType bufferType)
 {
 	auto it = buffers_.find(bufferType);
@@ -560,6 +578,13 @@ int NxpNeoFrames::InfoContext::resolveBuffer(BufferType bufferType)
 	return 0;
 }
 
+/**
+ * \brief Check if any buffer of the specified types is still pending
+ * \param[in] bufferTypes Vector of buffer types to check
+ *
+ * \return True if at least one buffer of the specified types is still pending,
+ * false otherwise
+ */
 bool NxpNeoFrames::InfoContext::isBufferPending(
 	const std::vector<BufferType> &bufferTypes) const
 {
@@ -575,6 +600,15 @@ bool NxpNeoFrames::InfoContext::isBufferPending(
 	return false;
 }
 
+/**
+ * \brief Check if all processing for this context is complete
+ *
+ * A context is considered complete when all its buffers have been processed,
+ * the params buffer has been dequeued by the ISP, and the IPA has produced
+ * the metadata from the stats buffer.
+ *
+ * \return True if the context processing is complete, false otherwise
+ */
 bool NxpNeoFrames::InfoContext::isContextComplete() const
 {
 	bool buffersComplete = true;
@@ -592,6 +626,12 @@ bool NxpNeoFrames::InfoContext::isContextComplete() const
 	return complete;
 }
 
+/**
+ * \brief Retrieve a buffer of the specified type from this context
+ * \param[in] bufferType The type of buffer to retrieve
+ *
+ * \return Pointer to the FrameBuffer if found, nullptr otherwise
+ */
 FrameBuffer *NxpNeoFrames::InfoContext::getBuffer(BufferType bufferType) const
 {
 	auto it = buffers_.find(bufferType);
@@ -602,6 +642,14 @@ FrameBuffer *NxpNeoFrames::InfoContext::getBuffer(BufferType bufferType) const
 	return buffer;
 }
 
+/**
+ * \brief Check if all processing for this frame is complete
+ *
+ * A frame is considered complete when all its associated contexts have
+ * completed their processing.
+ *
+ * \return True if the frame processing is complete, false otherwise
+ */
 bool NxpNeoFrames::Info::isFrameComplete() const
 {
 	for (const auto &[context, infoContext] : contexts_) {
@@ -612,6 +660,12 @@ bool NxpNeoFrames::Info::isFrameComplete() const
 	return true;
 }
 
+/**
+ * \brief Retrieve the InfoContext for a specific camera context
+ * \param[in] context The camera context to retrieve
+ *
+ * \return Pointer to the InfoContext if found, nullptr otherwise
+ */
 NxpNeoFrames::InfoContext *
 NxpNeoFrames::Info::getContext(CameraContext context)
 {
@@ -629,6 +683,16 @@ NxpNeoFrames::NxpNeoFrames(NxpNeoCameraData *data)
 {
 }
 
+/**
+ * \brief Destroy a frame Info instance and release its resources
+ * \param[in] id The frame sequence number identifying the Info to destroy
+ *
+ * This function removes the frame Info associated with the given id from the
+ * active frames map and returns all internal buffers to their respective pools
+ * for reuse.
+ *
+ * \return 0 on success, -ENOENT if the frame Info is not found
+ */
 int NxpNeoFrames::destroy(unsigned int id)
 {
 	Info *info = find(id);
@@ -655,12 +719,27 @@ int NxpNeoFrames::destroy(unsigned int id)
 	return 0;
 }
 
+/**
+ * \brief Clear all active frame Info instances
+ *
+ * This function destroys all frame Info instances currently tracked, releasing
+ * all associated resources and returning buffers to their pools.
+ */
 void NxpNeoFrames::clear()
 {
 	while (!frameInfo_.empty())
 		destroy(frameInfo_.begin()->first);
 }
 
+/**
+ * \brief Create a new frame Info instance for a libcamera::Request
+ * \param[in] request The libcamera Request to associate with the frame Info
+ *
+ * This function creates and initializes a new Info instance that bundles the
+ * Request with all necessary buffers for processing through the pipeline.
+ *
+ * \return Pointer to the created Info instance, or nullptr on failure
+ */
 NxpNeoFrames::Info *NxpNeoFrames::create(Request *request)
 {
 	if (data_->isRawCamera())
@@ -669,6 +748,12 @@ NxpNeoFrames::Info *NxpNeoFrames::create(Request *request)
 		return createYuv(request);
 }
 
+/**
+ * \brief Find a frame Info instance by libcamera::Request sequence number
+ * \param[in] id The frame sequence number to search for
+ *
+ * \return Pointer to the Info instance if found, nullptr otherwise
+ */
 NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id)
 {
 	const auto it = frameInfo_.find(id);
@@ -680,6 +765,12 @@ NxpNeoFrames::Info *NxpNeoFrames::find(unsigned int id)
 	return nullptr;
 }
 
+/**
+ * \brief Find a frame Info instance by libcamera::Request pointer
+ * \param[in] request The Request to search for
+ *
+ * \return Pointer to the Info instance if found, nullptr otherwise
+ */
 NxpNeoFrames::Info *NxpNeoFrames::find(Request *request)
 {
 	for (auto &[id, info] : frameInfo_) {
@@ -692,6 +783,17 @@ NxpNeoFrames::Info *NxpNeoFrames::find(Request *request)
 	return nullptr;
 }
 
+/**
+ * \brief Find frame Info, context, and camera context by buffer
+ * \param[in] buffer The FrameBuffer to search for
+ * \param[in] bufferType The type of buffer being searched
+ *
+ * This function searches through all active frame Info instances and their
+ * contexts to locate the specified buffer of the given type.
+ *
+ * \return A tuple containing pointers to the Info, InfoContext, and the
+ * CameraContext. Returns nullptr values if not found.
+ */
 std::tuple<NxpNeoFrames::Info *, NxpNeoFrames::InfoContext *, CameraContext>
 NxpNeoFrames::find(const FrameBuffer *buffer, BufferType bufferType)
 {
