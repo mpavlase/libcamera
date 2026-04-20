@@ -420,7 +420,6 @@ private:
 	void ipaSetSensorControls(unsigned int id,
 				  const ControlList &sensorControls);
 	void ipaSetLensControls(const ControlList &lensControls);
-	unsigned int contextCount() { return mode_ == PipelineMode::RgbIrDual ? 2 : 1; }
 
 	const std::vector<CameraContext> &contexts() const { return contexts_; }
 
@@ -854,13 +853,13 @@ NxpNeoFrames::Info *NxpNeoFrames::createRaw(Request *request)
 	 * In RGBIr context switch mode, one buffer per frame context is needed
 	 * for embedded data as well as for ISP params and stats.
 	 */
-	unsigned int _contextCount = data_->contextCount();
+	unsigned int contextCount = data_->contexts().size();
 	for (const auto &[type, availableBuffers] : data_->availableBuffersMap_) {
 		unsigned int count =
 			type == BufferType::EData ||
 					type == BufferType::Params ||
 					type == BufferType::Stats
-				? _contextCount
+				? contextCount
 				: 1;
 		if (availableBuffers.size() < count) {
 			LOG(NxpNeoPipe, Warning)
@@ -2321,10 +2320,10 @@ int NxpNeoCameraData::allocateBuffersRaw()
 	}
 
 	/* Allocate front-end devices buffers for images and edata streams. */
-	unsigned int _contextCount = contextCount();
+	unsigned int contextCount = contexts().size();
 	for (const FEStream &stream : feCamera_->streams()) {
 		unsigned int count = stream == FEStream::EData
-					     ? bufferCount * _contextCount
+					     ? bufferCount * contextCount
 					     : bufferCount;
 		V4L2VideoDevice *vdev = feCamera_->videoDevice(stream);
 		if (!vdev) {
