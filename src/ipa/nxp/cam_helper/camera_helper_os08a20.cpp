@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * camera_helper_os08a20.c
+ * Copyright 2024-2026 NXP
+ *
  * Helper class that performs sensor-specific parameter computations
  * for Omnivision OS08A20 sensor
- * Copyright 2024-2025 NXP
  */
 
 #include <cmath>
@@ -47,8 +47,8 @@ public:
 	uint32_t gainCode(double gain) const override;
 	double gain(uint32_t gainCode) const override;
 	void controlListSetAGC(
-		ControlList *ctrls, SensorContextTypes context,
-		Duration exposure, double gain) override;
+		ControlList *ctrls,
+		Span<const Duration> exposures, Span<const double> gains) override;
 	int sensorControlsToMetaData(
 		const ControlList *sensorCtrls, ControlList *mdCtrls) const override;
 	void controlInfoMapGetExposureRange(
@@ -127,23 +127,26 @@ double CameraHelperOs08a20::gain(uint32_t gainCode) const
 }
 
 void CameraHelperOs08a20::controlListSetAGC(
-	ControlList *ctrls, SensorContextTypes context,
-	Duration exposure, double gain)
+	ControlList *ctrls,
+	Span<const Duration> exposures, Span<const double> gains)
 {
 	/* In non-HDR mode, the standard single-capture controls are used. */
-	if (mode_.streamMode != SensorStreamHdr)
-		return CameraHelper::controlListSetAGC(ctrls, context, exposure, gain);
+	if (mode_.streamMode != SensorStreamMode::Hdr)
+		return CameraHelper::controlListSetAGC(ctrls, exposures, gains);
 
 	/* In HDR mode, the multi-capture controls are used. */
 
+	if (exposures.empty() || gains.empty())
+		return;
+
 	/* Exposure time and gain provided by AGC apply to long capture. */
-	uint32_t expRowsLong = exposureLines(exposure, hblankToLineLength(mode_.hblank));
-	double aGainLong = gain;
+	uint32_t expRowsLong = exposureLines(exposures[0], hblankToLineLength(mode_.hblank));
+	double aGainLong = gains[0];
 	uint32_t expRowsShort = std::clamp(maxExposureLines() - expRowsLong,
 					   kMinShortExposureLines,
 					   kMaxShortExposureLines);
 	double aGainShort;
-	double expTotalLong = expRowsLong * gain;
+	double expTotalLong = expRowsLong * aGainLong;
 	/* Total short exposure is total long exposure divided by ratio. */
 	double expTotalShort = expTotalLong / kRatioL2S;
 
@@ -191,7 +194,7 @@ void CameraHelperOs08a20::controlInfoMapGetExposureRange(
 	 * In non-HDR mode, the exposure range comes from
 	 * the standard single-capture controls.
 	 */
-	if (mode_.streamMode != SensorStreamHdr)
+	if (mode_.streamMode != SensorStreamMode::Hdr)
 		return CameraHelper::controlInfoMapGetExposureRange(ctrls, minExposure,
 								    maxExposure, defExposure);
 
@@ -231,7 +234,7 @@ void CameraHelperOs08a20::controlInfoMapGetAnalogGainRange(
 	 * In non-HDR mode, the analog gain range comes from
 	 * the standard single-capture controls.
 	 */
-	if (mode_.streamMode != SensorStreamHdr)
+	if (mode_.streamMode != SensorStreamMode::Hdr)
 		return CameraHelper::controlInfoMapGetAnalogGainRange(ctrls, minGain,
 								      maxGain, defGain);
 
@@ -253,7 +256,7 @@ int CameraHelperOs08a20::sensorControlsToMetaData(const ControlList *sensorCtrls
 	int ret = 0;
 
 	/* In non-HDR mode, the standard single-capture controls are used. */
-	if (mode_.streamMode != SensorStreamHdr)
+	if (mode_.streamMode != SensorStreamMode::Hdr)
 		return CameraHelper::sensorControlsToMetaData(sensorCtrls, mdCtrls);
 
 	/* In HDR mode, the multi-capture controls are used. */
@@ -279,7 +282,7 @@ int CameraHelperOs08a20::sensorControlsToMetaData(const ControlList *sensorCtrls
 	if (!exposureCtrl.isNone()) {
 		Span<const uint32_t> exposures = exposureCtrl.get<Span<const uint32_t>>();
 		ASSERT(exposures.size() == 2);
-		Duration lineLength= hblankToLineLength(mode_.hblank);
+		Duration lineLength = hblankToLineLength(mode_.hblank);
 		exposureArray[0] = exposure(exposures[0], lineLength) / 1.0s;
 		exposureArray[1] = exposure(exposures[1], lineLength) / 1.0s;
 	} else {
@@ -293,7 +296,7 @@ int CameraHelperOs08a20::sensorControlsToMetaData(const ControlList *sensorCtrls
 	mdCtrls->set(md::WhiteBalanceGain, Span<float>(wbGains));
 
 	/* Arbitrary temperature value */
-	mdCtrls->set(md::Temperature, 25.0);
+	mdCtrls->set(md::Temperature, kDefaultTemperatureCelsius);
 
 	return ret;
 }

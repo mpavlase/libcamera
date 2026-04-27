@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * Helper class that performs sensor-specific parameter computations
+ *
  * Based on Helper class that performs sensor-specific parameter computations
  *     src/ipa/libipa/camera_sensor_helper.h
  * Copyright (C) 2021, Google Inc.
- *
- * camera_helper.h
- * Helper class that performs sensor-specific parameter computations
- * Copyright 2024-2025 NXP
  */
 
 #pragma once
@@ -53,17 +53,11 @@ extern const ControlIdMap controlIdMap;
 } /* namespace md */
 
 /* Sensor stream modes */
-enum SensorStreamModes {
-	SensorStreamStandard = 0,
-	SensorStreamHdr,
-	SensorStreamRgbIr,
-	SensorStreamDualContext,
-};
-
-/* Sensor frame context types */
-enum SensorContextTypes {
-	SensorContextRgb = 0,
-	SensorContextIr,
+enum class SensorStreamMode {
+	Standard,
+	Hdr,
+	RgbIr,
+	DualContext,
 };
 
 /* Subset of IPACameraSensorInfo structure*/
@@ -79,7 +73,7 @@ struct CameraMode {
 	int32_t hblank;
 	int32_t vblank;
 	/* stream mode */
-	SensorStreamModes streamMode;
+	SensorStreamMode streamMode;
 };
 
 class CameraHelper : public ipa::CameraSensorHelper
@@ -88,11 +82,11 @@ public:
 	CameraHelper();
 	virtual ~CameraHelper() = default;
 	virtual void setCameraMode(const CameraMode &mode);
-	virtual void setControls(const ControlList *sensorCtrls);
+	virtual void sensorControlList(const ControlList *sensorCtrls);
 
 	virtual void controlListSetAGC(
-		ControlList *ctrls, SensorContextTypes context,
-		Duration exposure, double gain);
+		ControlList *ctrls,
+		Span<const Duration> exposures, Span<const double> gains);
 
 	virtual void controlInfoMapGetExposureRange(
 		const ControlInfoMap *ctrls, std::vector<Duration> *minExposure,
@@ -112,7 +106,6 @@ public:
 
 		std::map<int32_t, std::pair<uint32_t, bool>> delayedControlParams;
 		struct MdParams mdParams;
-		bool rgbIr;
 	};
 
 	virtual const Attributes *attributes() const { return &attributes_; }
@@ -132,6 +125,8 @@ public:
 protected:
 	Attributes attributes_;
 	CameraMode mode_;
+
+	static constexpr float kDefaultTemperatureCelsius = 25.0f;
 
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(CameraHelper)

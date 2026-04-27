@@ -1,14 +1,20 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
+ * Copyright 2024-2026 NXP
+ *
+ * NXP NEO IPA Context
+ *
  * Based on RkISP1 IPA Context
  *     src/ipa/rkisp1/ipa_context.h
  * Copyright (C) 2021-2022, Ideas On Board
- *
- * ipa_context.h - NXP NEO IPA Context
- * Copyright 2024-2025 NXP
  */
 
 #pragma once
+
+#include <array>
+#include <map>
+#include <optional>
+#include <vector>
 
 #include <linux/nxp_neoisp.h>
 
@@ -36,10 +42,8 @@ namespace ipa::nxpneo {
 struct IPAHwSettings {
 	uint32_t hwRevision;
 	uint32_t hwCapabilities;
-	uint32_t apiVersion;
+	uint64_t supportedParamsBlocks;
 };
-
-static constexpr unsigned int kContextTypes = 2;
 
 struct IPASessionConfiguration {
 	struct {
@@ -100,9 +104,10 @@ struct IPASessionConfiguration {
 	} drc;
 
 	std::map<IPAStreamType, IPAStream> streams;
+	std::vector<IPACameraContext> activeContexts;
 
 	IPAColorSpace colorSpace;
-	IPAModeType pipelineMode;
+	IPAPipelineMode pipelineMode;
 };
 
 struct IPAActiveState {
@@ -122,11 +127,11 @@ struct IPAActiveState {
 			double gain;
 		} automatic;
 
-		uint32_t constraintMode;
-		uint32_t exposureMode;
+		controls::AeConstraintModeEnum constraintMode;
+		controls::AeExposureModeEnum exposureMode;
 		bool autoEnabled;
 	};
-	std::array<agc, kContextTypes> agc;
+	std::map<IPACameraContext, agc> agcs;
 
 	struct {
 		struct {
@@ -143,6 +148,10 @@ struct IPAActiveState {
 	struct {
 		Matrix<float, 3, 3> ccm;
 	} ccm;
+
+	struct {
+		bool enabled;
+	} lsc;
 
 	struct {
 		float gamma;
@@ -171,7 +180,7 @@ struct IPAFrameContext : public FrameContext {
 		double gain;
 		bool autoEnabled;
 	};
-	std::array<agc, kContextTypes> agc;
+	std::map<IPACameraContext, agc> agcs;
 
 	struct {
 		RGB<double> gains;
@@ -192,7 +201,7 @@ struct IPAFrameContext : public FrameContext {
 			uint32_t exposure;
 			double gain;
 		};
-		std::array<agc, kContextTypes> agc;
+		std::map<IPACameraContext, agc> agcs;
 		RGB<double> wbGains;
 		ControlList mdControls;
 		bool metaDataValid;
@@ -203,11 +212,17 @@ struct IPAFrameContext : public FrameContext {
 	} ccm;
 
 	struct {
+		bool enabled;
+		bool update;
+	} lsc;
+
+	struct {
 		float gamma;
 		bool update;
 	} goc;
 
-	IPAContextType contextType;
+	IPACameraContext cameraContext;
+	std::map<IPACameraContext, bool> processed;
 };
 
 struct IPAContext {
@@ -230,4 +245,4 @@ struct IPAContext {
 
 } /* namespace ipa::nxpneo */
 
-} /* namespace libcamera*/
+} /* namespace libcamera */

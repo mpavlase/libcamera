@@ -1,12 +1,12 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * Based on Helper class that performs sensor-specific parameter computations
- *     src/ipa/libipa/camera_sensor_helper.c
- * Copyright (C) 2021, Google Inc.
+ * Copyright 2024-2026 NXP
  *
- * camera_helper.c
  * Helper class that performs sensor-specific parameter computations
- * Copyright 2024-2025 NXP
+ *
+ * Based on Helper class that performs sensor-specific parameter computations
+ *     src/ipa/libipa/camera_sensor_helper.cpp
+ * Copyright (C) 2021, Google Inc.
  */
 #include "camera_helper.h"
 
@@ -181,7 +181,6 @@ CameraHelper::CameraHelper()
 		  {
 			  0, /* topLines */
 		  } /* MdParams */,
-		  false, /* rgbIr */
 	  }
 {
 }
@@ -192,6 +191,10 @@ CameraHelper::CameraHelper()
  */
 void CameraHelper::setCameraMode(const CameraMode &mode)
 {
+	if (!mode.pixelRate)
+		LOG(NxpCameraHelper, Error)
+			<< "Invalid pixel rate " << mode.pixelRate;
+
 	mode_ = mode;
 	LOG(NxpCameraHelper, Debug)
 		<< " pixel rate: " << mode_.pixelRate
@@ -200,11 +203,11 @@ void CameraHelper::setCameraMode(const CameraMode &mode)
 		<< " Bit depth " << mode_.bitdepth
 		<< " Width " << mode_.width
 		<< " Height " << mode_.height
-		<< " StreamMode " << mode_.streamMode;
+		<< " StreamMode " << static_cast<int>(mode_.streamMode);
 }
 
 /**
- * \brief Configure the camera helper with sensor control values
+ * \brief Update the camera helper with sensor control values
  *
  * This function passes the sensor control list populated with the actual
  * control values read from the sensor.
@@ -213,29 +216,35 @@ void CameraHelper::setCameraMode(const CameraMode &mode)
  *
  * \param[in] sensorCtrls The sensor control list
  */
-void CameraHelper::setControls(const ControlList *sensorCtrls)
+void CameraHelper::sensorControlList(
+	[[maybe_unused]] const ControlList *sensorCtrls)
 {
 	/* Nothing to do */
-	(void)sensorCtrls;
 }
 
 /**
  * \brief Update sensor control list with AGC configuration
  * \param[inout] ctrls The control list to be updated
- * \param[in] context The frame context type
- * \param[in] exposure The AGC exposure duration in seconds
- * \param[in] gain The AGC real gain decision
+ * \param[in] exposures Span of AGC exposures duration in seconds
+ * \param[in] gains Span of AGC real gains decision
  *
  * This function aims to abstract the AGC control for sensor having
  * a proprietary programming model.
+ * The span used for the exposures and gains provides a set of values
+ * for multiple contexts (such as RGBIr dual mode with RGB and Ir contexts).
+ * If the span is empty for either the exposures or the gains, the function
+ * is not updating the sensor control list.
  */
 void CameraHelper::controlListSetAGC(
-	ControlList *ctrls, [[maybe_unused]] SensorContextTypes context,
-	Duration exposure, double gain)
+	ControlList *ctrls,
+	Span<const Duration> exposures, Span<const double> gains)
 {
-	ctrls->set(V4L2_CID_ANALOGUE_GAIN, static_cast<int32_t>(gainCode(gain)));
+	if (exposures.empty() || gains.empty())
+		return;
 
-	int32_t lines = exposureLines(exposure, hblankToLineLength(mode_.hblank));
+	ctrls->set(V4L2_CID_ANALOGUE_GAIN, static_cast<int32_t>(gainCode(gains[0])));
+
+	int32_t lines = exposureLines(exposures[0], hblankToLineLength(mode_.hblank));
 	ctrls->set(V4L2_CID_EXPOSURE, lines);
 }
 
@@ -332,16 +341,15 @@ void CameraHelper::controlInfoMapGetAnalogGainRange(
  *   configuration.
  * In case white balance gains are controlled in the ISP, this method does
  * nothing.
-.*
+ *
  * \param[inout] ctrls The control list to be updated
  * \param[in] gains The gains for the color channels in this order: R, Gr, Gb, B
  */
 void CameraHelper::controlListSetAWB(
-	ControlList *ctrls, Span<const double, 4> gains) const
+	[[maybe_unused]] ControlList *ctrls,
+	[[maybe_unused]] Span<const double, 4> gains) const
 {
 	/* Nothing to do, not supported by default */
-	(void)gains;
-	(void)ctrls;
 }
 
 /**
@@ -369,7 +377,7 @@ int CameraHelper::parseEmbedded([[maybe_unused]] Span<const uint8_t> buffer,
  * \param[in] sensorCtrls The sensor control list
  * \param[out] mdCtrls The metadata control list
  *
- * \return 0 in case of success, embedded data present and decoded
+ * \return 0 in case of success, -1 if required controls are missing
  */
 int CameraHelper::sensorControlsToMetaData(const ControlList *sensorCtrls,
 					   ControlList *mdCtrls) const
@@ -409,7 +417,7 @@ int CameraHelper::sensorControlsToMetaData(const ControlList *sensorCtrls,
 	mdCtrls->set(md::WhiteBalanceGain, Span<float>(wbGains));
 
 	/* Arbitrary temperature value */
-	mdCtrls->set(md::Temperature, 25.0);
+	mdCtrls->set(md::Temperature, kDefaultTemperatureCelsius);
 
 	return ret;
 }
