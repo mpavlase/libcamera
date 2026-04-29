@@ -669,7 +669,7 @@ void Drc::controlDynamicMode(const std::vector<uint32_t> &inputHistogram)
  * \copydoc libcamera::ipa::Algorithm::init
  */
 int Drc::init([[maybe_unused]] IPAContext &context,
-	      const YamlObject &tuningData)
+	      const ValueNode &tuningData)
 {
 	restrictMode_ = tuningData["restrict-mode"].get<std::string>("none");
 
@@ -687,7 +687,7 @@ int Drc::init([[maybe_unused]] IPAContext &context,
 	 * by calibration file.
 	 */
 	std::fill(globalFixedLut_.begin(), globalFixedLut_.end(), kQ8Unit);
-	auto lut = tuningData["gbl-lut"].getList<uint16_t>().value_or(
+	auto lut = tuningData["gbl-lut"].get<std::vector<uint16_t>>().value_or(
 		std::vector<uint16_t>{});
 	if (!lut.empty()) {
 		if (lut.size() != NEO_DRC_GLOBAL_TONEMAP_SIZE) {

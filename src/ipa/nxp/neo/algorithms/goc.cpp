@@ -19,7 +19,7 @@
 
 #include <libcamera/control_ids.h>
 
-#include "libcamera/internal/yaml_parser.h"
+#include "libcamera/internal/value_node.h"
 
 #include "libipa/fixedpoint.h"
 
@@ -157,7 +157,7 @@ LOG_DEFINE_CATEGORY(NxpNeoAlgoGoc)
  * \copydoc libcamera::ipa::Algorithm::init
  */
 int GammaOutCorrection::init([[maybe_unused]] IPAContext &context,
-			     const YamlObject &tuningData)
+			     const ValueNode &tuningData)
 {
 	/* Get the gamma value from tuning file. */
 	gamma_ = tuningData["gamma"].get<float>();
