@@ -101,7 +101,6 @@ struct IPASessionConfiguration {
 
 	struct {
 		struct neoisp_roi_cfg_s roi;
-		uint16_t gblMode;
 	} drc;
 
 	std::map<IPAStreamType, IPAStream> streams;
