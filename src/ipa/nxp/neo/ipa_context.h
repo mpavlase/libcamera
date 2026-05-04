@@ -81,6 +81,7 @@ struct IPASessionConfiguration {
 
 	struct {
 		uint16_t ratioLong2Short;
+		bool enabled;
 	} hdr;
 
 	struct {
@@ -156,6 +157,11 @@ struct IPAActiveState {
 	struct {
 		float gamma;
 	} goc;
+
+	struct {
+		bool enabled;
+		int32_t userMode;
+	} hdr;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -220,6 +226,12 @@ struct IPAFrameContext : public FrameContext {
 		float gamma;
 		bool update;
 	} goc;
+
+	struct {
+		bool enabled;
+		bool update;
+		int32_t userMode;
+	} hdr;
 
 	IPACameraContext cameraContext;
 	std::map<IPACameraContext, bool> processed;

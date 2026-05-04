@@ -182,7 +182,7 @@ HdrMerge::HdrMerge()
 	  downscale_{ kDefaultDownscale0, kDefaultDownscale1 },
 	  upscale_{ kDefaultUpscale0, kDefaultUpscale1 },
 	  postscale_(kDefaultPostscale),
-	  enabled_(false), autoEnabled_(kAutoEnabled)
+	  autoEnabled_(kAutoEnabled)
 {
 }
 
@@ -201,6 +201,9 @@ int HdrMerge::init([[maybe_unused]] IPAContext &context,
 	int ret = parseCommonParams(tuningData);
 	if (ret)
 		return ret;
+
+	context.ctrlMap[&controls::HdrMode] = ControlInfo(controls::HdrModeValues,
+							  kDefaultHdrMode_);
 
 	return autoEnabled_ ?
 		parseAutoParams(tuningData) :
@@ -392,9 +395,31 @@ int HdrMerge::configure(IPAContext &context,
 			[[maybe_unused]] const IPACameraSensorInfo &configInfo)
 {
 	IPAPipelineMode &mode = context.configuration.pipelineMode;
-	enabled_ = mode == IPAPipelineMode::HdrMerge;
+	/*
+	 * Set the IPA context HDR enabled flag with the HDR merge pipeline
+	 * mode.
+	 */
+	context.configuration.hdr.enabled = mode == IPAPipelineMode::HdrMerge;
+	/*
+	 * Initialize the active state HDR enabled flag with the IPA context
+	 * HDR enabled flag.
+	 */
+	context.activeState.hdr.enabled = context.configuration.hdr.enabled;
 
 	context.configuration.hdr.ratioLong2Short = ratioL2S_;
+
+	/* Store image0 gain scale/shift for HDR disabled (scale to 20-bit). */
+	std::array<uint32_t, kNumImages> &bpps =
+		context.configuration.sensor.bpps;
+
+	int scaleShift = 20 - bpps[0];
+	if (scaleShift >= 0) {
+		gainScale20bitsImage0_ = 1 << scaleShift;
+		gainShift20bitsImage0_ = 0;
+	} else {
+		gainScale20bitsImage0_ = 1;
+		gainShift20bitsImage0_ = std::abs(scaleShift);
+	}
 
 	if (autoEnabled_)
 		computeParams(context);
@@ -523,23 +548,76 @@ void HdrMerge::computeParams(IPAContext &context)
 }
 
 /**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void HdrMerge::queueRequest(IPAContext &context,
+			    const uint32_t frame,
+			    IPAFrameContext &frameContext,
+			    const ControlList &controls)
+{
+	if (!context.configuration.hdr.enabled)
+		return;
+
+	auto &hdr = context.activeState.hdr;
+	const auto &hdrMode = controls.get(controls::HdrMode);
+
+	/* Force the static configuration for the first frame. */
+	if (!frame) {
+		frameContext.hdr.update = true;
+		hdr.userMode = kDefaultHdrMode_;
+	}
+
+	if (hdrMode) {
+		if (*hdrMode != controls::HdrModeOff &&
+		    *hdrMode != controls::HdrModeMultiExposure) {
+			LOG(NxpNeoAlgoHdrMerge, Warning)
+				<< " Values of controls::HdrMode " << *hdrMode
+				<< " is not supported";
+			return;
+		} else if ((*hdrMode == controls::HdrModeOff && hdr.enabled) ||
+			   (*hdrMode == controls::HdrModeMultiExposure && !hdr.enabled)) {
+			hdr.enabled = *hdrMode != controls::HdrModeOff;
+
+			LOG(NxpNeoAlgoHdrMerge, Debug)
+				<< (hdr.enabled ? "Enabling" : "Disabling")
+				<< " HDR";
+			frameContext.hdr.update = true;
+			hdr.userMode = *hdrMode;
+		}
+	}
+
+	frameContext.hdr.enabled = hdr.enabled;
+	frameContext.hdr.userMode = hdr.userMode;
+}
+
+/**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void HdrMerge::prepare([[maybe_unused]] IPAContext &context, const uint32_t frame,
-		       [[maybe_unused]] IPAFrameContext &frameContext,
+void HdrMerge::prepare([[maybe_unused]] IPAContext &context,
+		       [[maybe_unused]] const uint32_t frame,
+		       IPAFrameContext &frameContext,
 		       NxpNeoParams *params)
 {
-	if (!enabled_ || frame > 0)
+	if (!frameContext.hdr.update)
 		return;
 
 	/* HDR Merge block configuration */
 	auto config = params->block<BlockParamsType::HdrMerge>();
 	config.setEnabled(true);
 
+	/*
+	 * If HDR merge is disabled by user controls, the HDR blending is
+	 * disabled and only the image0 is provided as the output of the
+	 * HDR merge block.
+	 * For this, the image0 is scaled to 20-bit.
+	 */
 	config->ctrl_obpp = obpp_;
 	config->ctrl_motion_fix_en = motionfixEn_;
 	config->ctrl_blend_3x3 = blend3x3_;
-	config->ctrl_gain0bpp = gainBpp_[0];
+	/* If HDR is disabled, saturate image0 bit depth to 20-bit. */
+	config->ctrl_gain0bpp = frameContext.hdr.enabled ?
+		gainBpp_[0] :
+		static_cast<unsigned int>(NEO_HDR_MERGE_BPP_20BPP);
 	config->ctrl_gain1bpp = gainBpp_[1];
 
 	LOG(NxpNeoAlgoHdrMerge, Debug)
@@ -558,14 +636,17 @@ void HdrMerge::prepare([[maybe_unused]] IPAContext &context, const uint32_t fram
 		<< utils::hex(config->gain_offset_offset0)
 		<< "/" << utils::hex(config->gain_offset_offset1);
 
-	config->gain_scale_scale0 = gainScale_[0];
+	/* If HDR is disabled, scale image0 to 20-bit. */
+	config->gain_scale_scale0 =
+		frameContext.hdr.enabled ? gainScale_[0] : gainScale20bitsImage0_;
 	config->gain_scale_scale1 = gainScale_[1];
 
 	LOG(NxpNeoAlgoHdrMerge, Debug)
 		<< "gain scale (0/1) " << utils::hex(config->gain_scale_scale0)
 		<< "/" << utils::hex(config->gain_scale_scale1);
 
-	config->gain_shift_shift0 = gainShift_[0];
+	config->gain_shift_shift0 =
+		frameContext.hdr.enabled ? gainShift_[0] : gainShift20bitsImage0_;
 	config->gain_shift_shift1 = gainShift_[1];
 
 	LOG(NxpNeoAlgoHdrMerge, Debug)
@@ -573,7 +654,13 @@ void HdrMerge::prepare([[maybe_unused]] IPAContext &context, const uint32_t fram
 		<< static_cast<int>(config->gain_shift_shift0)
 		<< "/" << static_cast<int>(config->gain_shift_shift1);
 
-	config->luma_th_th0 = lumaTh0_;
+	/*
+	 * If HDR is disabled, disable blending and output image0 only.
+	 * For this, the luma threshold is set to the highest value of the
+	 * 20-bit range.
+	 */
+	config->luma_th_th0 =
+		frameContext.hdr.enabled ? lumaTh0_ : (1 << 20) - 1;
 	config->luma_scale_scale = lumaScale_;
 	config->luma_scale_shift = lumaScaleShift_;
 	config->luma_scale_thshift = lumaScaleThShift_;
@@ -598,6 +685,18 @@ void HdrMerge::prepare([[maybe_unused]] IPAContext &context, const uint32_t fram
 		<< static_cast<int>(config->upscale_imgscale0)
 		<< "/" << static_cast<int>(config->upscale_imgscale1)
 		<< " postscale " << static_cast<int>(config->post_scale_scale);
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::process
+ */
+void HdrMerge::process([[maybe_unused]] IPAContext &context,
+		       [[maybe_unused]] const uint32_t frame,
+		       [[maybe_unused]] IPAFrameContext &frameContext,
+		       [[maybe_unused]] const NxpNeoStats *stats,
+		       ControlList &metadata)
+{
+	metadata.set(controls::HdrMode, frameContext.hdr.userMode);
 }
 
 REGISTER_IPA_ALGORITHM(HdrMerge, "HdrMerge")
