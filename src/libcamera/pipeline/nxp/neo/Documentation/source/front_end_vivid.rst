@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: CC-BY-SA-4.0
 
-The Vivid Front End
-====================
+Vivid Front End
+===============
 
 Overview
 --------
