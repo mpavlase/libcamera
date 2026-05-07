@@ -1,0 +1,58 @@
+{
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "spdxVersion": "SPDX-2.3",
+  "creationInfo": {
+    "created": "2026-05-06T15:27:08Z",
+    "creators": [
+      "Organization: NXP"
+    ],
+    "licenseListVersion": "3.26"
+  },
+  "name": "libcamera-libcamera--lf-6.18.20_2.0.0",
+  "dataLicense": "CC0-1.0",
+  "documentNamespace": "https://nxp.com/spdx/8b0581e7-76a2-46b2-91ae-758bb76980ac",
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-package-8b0581e7-76a2-46b2-91ae-758bb76980ac",
+      "name": "libcamera",
+      "versionInfo": "libcamera--lf-6.18.20_2.0.0",
+      "licenseConcluded": "(LGPL-2.1-or-later)",
+      "licenseDeclared": "(LGPL-2.1-or-later)",
+      "downloadLocation": "NOASSERTION",
+      "originator": "Organization: NXP",
+      "supplier": "NOASSERTION",
+      "externalRefs": [],
+      "filesAnalyzed": false
+    },
+    {
+      "SPDXID": "SPDXRef-package-8b0581e7-76a2-46b2-91ae-758bb76980ac---4d9b8138-c957-4d1d-a98d-b67616f9d541",
+      "name": "libcamera",
+      "versionInfo": "0.7.1",
+      "licenseConcluded": "LGPL-2.1-or-later",
+      "licenseDeclared": "GPL-2.0-or-later",
+      "homepage": "https://libcamera.org/",
+      "downloadLocation": "NOASSERTION",
+      "originator": "Organization: libcamera",
+      "supplier": "NOASSERTION",
+      "externalRefs": [],
+      "filesAnalyzed": false
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-package-8b0581e7-76a2-46b2-91ae-758bb76980ac"
+    },
+    {
+      "spdxElementId": "SPDXRef-package-8b0581e7-76a2-46b2-91ae-758bb76980ac",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-package-8b0581e7-76a2-46b2-91ae-758bb76980ac---4d9b8138-c957-4d1d-a98d-b67616f9d541"
+    },
+    {
+      "spdxElementId": "SPDXRef-package-8b0581e7-76a2-46b2-91ae-758bb76980ac",
+      "relationshipType": "DYNAMIC_LINK",
+      "relatedSpdxElement": "SPDXRef-package-8b0581e7-76a2-46b2-91ae-758bb76980ac---4d9b8138-c957-4d1d-a98d-b67616f9d541"
+    }
+  ]
+}
