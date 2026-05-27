@@ -57,11 +57,8 @@ namespace ipa::nxpneo::algorithms {
  * In RGBIr Dual mode, the controls provided part of the capture request
  * apply the same to each context (RGB and Ir).
  *
- * The AGC algorithm should run after the AWB and HDR algorithms
- * due to following dependencies:
- * - AGC is using the AWB gains to adapt the calculated luminance.
- * - AGC is using the ratio between the long and short captures
- *   configured by the HDR algorithm to adapt the histogram scaling factor.
+ * Details about AGC dependencies can be found in the:
+ * <src/ipa/nxp/neo/Documentation/source/neo_ipa_algorithms.rst>
  */
 
 LOG_DEFINE_CATEGORY(NxpNeoAlgoAgc)

@@ -33,34 +33,9 @@ namespace ipa::nxpneo::algorithms {
  * This block when enabled combines the pixels of the two images of line path 0
  * and line path 1 into a single output.
  *
- *       input0              input1
- *     AXI IN0 DMA         AXI IN1 DMA
- *          │                   │
- *  ┌───────▼───────────────────▼───────┐
- *  │ PIPECONF                          │
- *  │    LPALIGN0             LPALIGN1  │
- *  │    INALIGN0             INALIGN1  │
- *  └───────┬───────────────────┬───────┘
- *  ┌───────▼───────┐   ┌───────▼───────┐
- *  │      HC0      │   │      HC1      │
- *  └───────┬───────┘   └───────┬───────┘
- *  ┌───────▼───────┐   ┌───────▼───────┐
- *  │  HDR Decomp0  │   │  HDR Decomp1  │
- *  └───────┬───────┘   └───────┬───────┘
- *  ┌───────▼───────┐   ┌───────▼───────┐
- *  │     OBWB0     │   │     OBWB1     │
- *  └───────┬───────┘   └───────┬───────┘
- *  ┌───────▼───────────────────▼───────┐
- *  │             HDR Merge             │
- *  └─────────────────┬─────────────────┘
- *  ┌─────────────────▼─────────────────┐
- *  │               RGBIR               │
- *  └───────┬───────────────────┬───────┘
- *  ┌───────▼───────┐           │
- *  │     OBWB2     │           │
- *  └───────┬───────┘           │
- *          ▼                   ▼
- *      to RGB Path        to IR path
+ * The diagram showing the path from the two input images to the HDR-merge block
+ * can be found in:
+ * <src/ipa/nxp/neo/Documentation/source/neo_ipa_algorithms.rst>
  *
  * At first, image0 and image1 pixels (x,y) are scaled to the same level by
  * the gain, offset and shift parameters:
@@ -102,16 +77,9 @@ namespace ipa::nxpneo::algorithms {
  * - the HDR ratio between the two images (from the calibration file),
  * - the blending window size (from the calibration file),
  * - the bit depth of both images (available from IPA).
- * The computation assumes that:
- * - the output pixel bit depth of the HDR-merge block is 20-bits,
- * - at the input of the HDR-merge block:
- *   - the pixel bit depth is the native camera pixel bit depth, as produced by
- *     the HDR-decomp algorithm.
- *   - the black-level subtraction does not reduce the effective input dynamic
- *     range for the HDR-merge block, because the AWB gains applied after the
- *     black-level correction rescales the signal. This ensures that the
- *     saturation detection operates correctly despite the earlier black-level
- *     offset removal.
+ * The computation is based on the algorithm considerations and hardware
+ * constraints as described in:
+ * <src/ipa/nxp/neo/Documentation/source/neo_ipa_algorithms.rst>.
  * The calculation of the scaling parameters (scale and shift) assumes that
  * the HDR ratio is an integer power of two. Arbitrary gain values can be used
  * but requires usage of the manual configuration mode.
@@ -119,6 +87,9 @@ namespace ipa::nxpneo::algorithms {
  * image0 is output of the HDR merge block.
  * Auto mode is enabled by default, but it can be overridden in the
  * calibration file.
+ *
+ * Details about HDR-merge dependencies can be found in the:
+ * <src/ipa/nxp/neo/Documentation/source/neo_ipa_algorithms.rst>
  *
  * The following parameters are read from the calibration file:
  *
